@@ -29,11 +29,27 @@ router.get('/', (req, res) => {
       const d = JSON.parse(fs.readFileSync(path.join(DATA_DIR, f), 'utf-8'));
       const passCount = Object.values(d.assessments || {})
         .filter(a => a.status === 'pass').length;
-      // 最近一次测量记录
+      // 摘要：每个指标取最近一次有值的记录
       const measurements = d.measurements || [];
-      const lastMeasurement = measurements.length > 0
-        ? measurements[measurements.length - 1]
-        : null;
+      let lastMeasurement = null;
+      if (measurements.length > 0) {
+        let height = null, heightDate = null;
+        let weight = null, weightDate = null;
+        let headCirc = null, headCircDate = null;
+        for (let i = measurements.length - 1; i >= 0; i--) {
+          const m = measurements[i];
+          if (height == null && m.height != null) { height = m.height; heightDate = m.date; }
+          if (weight == null && m.weight != null) { weight = m.weight; weightDate = m.date; }
+          if (headCirc == null && m.headCirc != null) { headCirc = m.headCirc; headCircDate = m.date; }
+          if (height != null && weight != null && headCirc != null) break;
+        }
+        // 3岁（36月龄）以上不显示头围
+        const ageMonths = (Date.now() - new Date(d.birthDate).getTime()) / (1000 * 60 * 60 * 24 * 30.4375);
+        if (ageMonths >= 36) { headCirc = null; headCircDate = null; }
+        const dates = [heightDate, weightDate, headCircDate].filter(Boolean);
+        const latestDate = dates.length > 0 ? dates.sort().pop() : null;
+        lastMeasurement = { height, weight, headCirc, date: latestDate };
+      }
       return {
         id: d.id,
         name: d.name,
