@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>生长曲线 - 儿童成长跟踪</title>
+<script src="/js/growth-standards.js"></script>
+<script src="/js/scoring.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --blue: #2563eb; --blue-light: #eff6ff; --blue-mid: #bfdbfe;
+  --green: #059669; --green-bg: #d1fae5;
+  --red: #dc2626; --red-bg: #fee2e2;
+  --orange: #ea580c;
+  --gray: #6b7280; --gray-bg: #f3f4f6; --gray-border: #e5e7eb;
+  --text: #111827; --text-2: #374151; --text-3: #6b7280;
+  --white: #ffffff;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
+  --radius: 12px; --radius-sm: 8px;
+}
+body {
+  font-family: -apple-system, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+  background: #f8fafc; color: var(--text); min-height: 100vh; line-height: 1.6;
+}
+.app-header {
+  background: var(--white); border-bottom: 1px solid var(--gray-border);
+  padding: 16px 20px; position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.header-left { display: flex; align-items: center; gap: 12px; }
+.back-btn {
+  background: none; border: none; font-size: 20px; cursor: pointer;
+  color: var(--text); padding: 4px 8px; border-radius: 6px;
+}
+.back-btn:hover { background: var(--gray-bg); }
+.header-title { font-size: 18px; font-weight: 600; }
+.header-sub { font-size: 13px; color: var(--text-3); }
+.add-btn {
+  background: var(--orange); color: white; border: none; border-radius: 20px;
+  padding: 8px 18px; font-size: 14px; font-weight: 500; cursor: pointer;
+}
+.add-btn:hover { opacity: 0.9; }
+.tabs {
+  display: flex; background: var(--white); border-bottom: 1px solid var(--gray-border);
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+}
+.tab {
+  flex-shrink: 0; padding: 12px 16px; font-size: 14px; color: var(--text-3);
+  cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap;
+  background: none; border-top: none; border-left: none; border-right: none;
+  font-family: inherit;
+}
+.tab.active { color: var(--text); border-bottom-color: var(--orange); font-weight: 600; }
+.chart-wrap { padding: 12px 0 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.chart-wrap svg { display: block; }
+.chart-y-label { font-size: 13px; color: var(--text-3); padding: 8px 20px 0; font-weight: 500; }
+.records-container { padding: 16px 20px; }
+.record-card {
+  background: var(--white); border-radius: var(--radius-sm); padding: 14px 16px;
+  margin-bottom: 10px; box-shadow: var(--shadow); display: flex;
+  justify-content: space-between; align-items: center;
+}
+.record-info { flex: 1; }
+.record-date { font-weight: 600; font-size: 15px; }
+.record-age { font-size: 12px; color: var(--text-3); margin-left: 8px; }
+.record-values { font-size: 13px; color: var(--text-2); margin-top: 4px; display: flex; gap: 14px; flex-wrap: wrap; }
+.record-val { white-space: nowrap; }
+.record-val span { color: var(--text-3); }
+.record-actions { display: flex; gap: 6px; flex-shrink: 0; margin-left: 12px; }
+.record-actions button {
+  background: none; border: 1px solid var(--gray-border); border-radius: 6px;
+  padding: 4px 10px; font-size: 12px; cursor: pointer; color: var(--text-3);
+}
+.record-actions button:hover { background: var(--gray-bg); }
+.record-actions .del-btn:hover { color: var(--red); border-color: var(--red); }
+.empty-msg { text-align: center; padding: 60px 20px; color: var(--text-3); font-size: 15px; }
+.app-footer { text-align: center; padding: 16px 20px; font-size: 12px; color: var(--text-3); }
+.modal-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+  z-index: 100; align-items: center; justify-content: center; padding: 20px;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: var(--white); border-radius: var(--radius); width: 100%;
+  max-width: 400px; box-shadow: var(--shadow-md); overflow: hidden;
+}
+.modal-header {
+  padding: 18px 20px; border-bottom: 1px solid var(--gray-border);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.modal-header h3 { font-size: 16px; }
+.modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-3); padding: 0 4px; }
+.modal-body { padding: 20px; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 13px; color: var(--text-2); margin-bottom: 6px; font-weight: 500; }
+.form-group input {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--gray-border);
+  border-radius: var(--radius-sm); font-size: 15px; outline: none;
+}
+.form-group input:focus { border-color: var(--blue); }
+.modal-footer {
+  padding: 14px 20px; border-top: 1px solid var(--gray-border);
+  display: flex; justify-content: flex-end; gap: 10px;
+}
+.modal-footer button {
+  padding: 9px 20px; border-radius: var(--radius-sm); font-size: 14px;
+  cursor: pointer; font-weight: 500;
+}
+.btn-cancel { background: var(--gray-bg); border: none; color: var(--text-2); }
+.btn-save { background: var(--blue); border: none; color: white; }
+@media (max-width: 600px) {
+  .app-header { padding: 12px 16px; }
+  .records-container { padding: 12px 16px; }
+}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-left">
+    <button class="back-btn" onclick="location.href='/'">&larr;</button>
+    <div>
+      <div class="header-title" id="childName">加载中...</div>
+      <div class="header-sub" id="childMeta"></div>
+    </div>
+  </div>
+  <button class="add-btn" onclick="openAddModal()">添加</button>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" data-tab="records">记录列表</button>
+  <button class="tab" data-tab="height">身高曲线</button>
+  <button class="tab" data-tab="weight">体重曲线</button>
+  <button class="tab" data-tab="headCirc">头围曲线</button>
+  <button class="tab" data-tab="bmi">BMI曲线</button>
+</nav>
+
+<main id="content"></main>
+
+<footer class="app-footer">曲线根据 WS/T 423—2022《7岁以下儿童生长标准》绘制</footer>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle">添加记录</h3>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId">
+      <div class="form-group">
+        <label>测量日期</label>
+        <input type="date" id="mDate">
+      </div>
+      <div class="form-group">
+        <label>身高 (cm)</label>
+        <input type="number" step="0.1" id="mHeight" placeholder="选填">
+      </div>
+      <div class="form-group">
+        <label>体重 (kg)</label>
+        <input type="number" step="0.1" id="mWeight" placeholder="选填">
+      </div>
+      <div class="form-group">
+        <label>头围 (cm)</label>
+        <input type="number" step="0.1" id="mHeadCirc" placeholder="选填">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">取消</button>
+      <button class="btn-save" onclick="saveMeasurement()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let childData = null;
+let currentTab = 'records';
+const childId = new URLSearchParams(location.search).get('id');
+
+async function init() {
+  if (!childId) { alert('缺少参数'); return; }
+  const res = await fetch('/api/children/' + childId);
+  if (!res.ok) { alert('加载失败'); return; }
+  childData = await res.json();
+  if (!childData.measurements) childData.measurements = [];
+  document.getElementById('childName').textContent = childData.name;
+  var age = getAgeMonths(childData.birthDate);
+  document.getElementById('childMeta').textContent =
+    (childData.gender === 'male' ? '男' : '女') + ' · ' + formatAge(age);
+  renderContent();
+}
+
+document.querySelectorAll('.tab').forEach(function(tab) {
+  tab.addEventListener('click', function() {
+    document.querySelector('.tab.active').classList.remove('active');
+    tab.classList.add('active');
+    currentTab = tab.dataset.tab;
+    renderContent();
+  });
+});
+
+function renderContent() {
+  var el = document.getElementById('content');
+  if (currentTab === 'records') renderRecords(el);
+  else renderChart(el, currentTab);
+}
+
+// ── Records list ──
+function renderRecords(container) {
+  var records = childData.measurements;
+  if (records.length === 0) {
+    container.innerHTML = '<div class="empty-msg">暂无记录，点击右上角「添加」开始记录</div>';
+    return;
+  }
+  var html = '<div class="records-container">';
+  for (var i = records.length - 1; i >= 0; i--) {
+    var r = records[i];
+    var vals = [];
+    if (r.height != null) vals.push('<span class="record-val">身高 <span>' + r.height + '</span> cm</span>');
+    if (r.weight != null) vals.push('<span class="record-val">体重 <span>' + r.weight + '</span> kg</span>');
+    if (r.headCirc != null) vals.push('<span class="record-val">头围 <span>' + r.headCirc + '</span> cm</span>');
+    if (r.weight != null && r.height != null) {
+      var bmi = (r.weight / Math.pow(r.height / 100, 2)).toFixed(1);
+      vals.push('<span class="record-val">BMI <span>' + bmi + '</span></span>');
+    }
+    html += '<div class="record-card">' +
+      '<div class="record-info">' +
+        '<span class="record-date">' + r.date + '</span>' +
+        '<span class="record-age">' + formatAge(r.ageMonths) + '</span>' +
+        '<div class="record-values">' + vals.join('') + '</div>' +
+      '</div>' +
+      '<div class="record-actions">' +
+        '<button onclick="openEditModal(\'' + r.id + '\')">编辑</button>' +
+        '<button class="del-btn" onclick="deleteMeasurement(\'' + r.id + '\')">删除</button>' +
+      '</div></div>';
+  }
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// ── Chart ──
+function renderChart(container, type) {
+  var gender = childData.gender;
+  var ages = getStandardAges(type, gender);
+  if (ages.length === 0) {
+    container.innerHTML = '<div class="empty-msg">暂无标准数据</div>';
+    return;
+  }
+
+  // Get data points for this metric
+  var dataPoints = [];
+  childData.measurements.forEach(function(m) {
+    var val = null;
+    if (type === 'height') val = m.height;
+    else if (type === 'weight') val = m.weight;
+    else if (type === 'headCirc') val = m.headCirc;
+    else if (type === 'bmi' && m.weight != null && m.height != null)
+      val = +(m.weight / Math.pow(m.height / 100, 2)).toFixed(1);
+    if (val != null) dataPoints.push({ age: m.ageMonths, val: val });
+  });
+
+  // Visible range
+  var currentAge = getAgeMonths(childData.birthDate);
+  var maxStdAge = ages[ages.length - 1];
+  var rangeMin, rangeMax;
+  if (dataPoints.length > 0) {
+    var dMin = dataPoints[0].age, dMax = dataPoints[0].age;
+    dataPoints.forEach(function(p) { dMin = Math.min(dMin, p.age); dMax = Math.max(dMax, p.age); });
+    rangeMin = Math.max(0, Math.min(dMin, currentAge) - 3);
+    rangeMax = Math.min(maxStdAge, Math.max(dMax, currentAge) + 3);
+  } else {
+    rangeMin = Math.max(0, currentAge - 6);
+    rangeMax = Math.min(maxStdAge, currentAge + 6);
+  }
+  if (rangeMax - rangeMin < 10) {
+    rangeMax = Math.min(maxStdAge, rangeMin + 10);
+    if (rangeMax - rangeMin < 10) rangeMin = Math.max(0, rangeMax - 10);
+  }
+  rangeMin = Math.floor(rangeMin);
+  rangeMax = Math.ceil(rangeMax);
+
+  // Dimensions
+  var mL = 50, mR = 50, mT = 20, mB = 40;
+  var pxPerMonth = 40;
+  var chartW = (rangeMax - rangeMin) * pxPerMonth;
+  var chartH = 380;
+  var svgW = mL + chartW + mR;
+  var svgH = mT + chartH + mB;
+
+  // Y range
+  var stdInRange = ages.filter(function(a) { return a >= rangeMin && a <= rangeMax; });
+  var yMin = Infinity, yMax = -Infinity;
+  stdInRange.forEach(function(a) {
+    var d = GROWTH_STANDARDS[type][gender][a];
+    yMin = Math.min(yMin, d[0]);
+    yMax = Math.max(yMax, d[6]);
+  });
+  dataPoints.forEach(function(p) {
+    if (p.age >= rangeMin && p.age <= rangeMax) {
+      yMin = Math.min(yMin, p.val);
+      yMax = Math.max(yMax, p.val);
+    }
+  });
+  var yPad = (yMax - yMin) * 0.1;
+  yMin = Math.floor(yMin - yPad);
+  yMax = Math.ceil(yMax + yPad);
+  if (yMin < 0) yMin = 0;
+
+  function xc(age) { return mL + (age - rangeMin) * pxPerMonth; }
+  function yc(val) { return mT + chartH - (val - yMin) / (yMax - yMin) * chartH; }
+
+  var s = '<svg width="' + svgW + '" height="' + svgH + '" xmlns="http://www.w3.org/2000/svg">';
+
+  // Y grid
+  var yStep = niceStep(yMin, yMax, 8);
+  for (var v = Math.ceil(yMin / yStep) * yStep; v <= yMax; v += yStep) {
+    var yy = yc(v);
+    s += '<line x1="' + mL + '" y1="' + yy + '" x2="' + (svgW - mR) + '" y2="' + yy + '" stroke="#e5e7eb" stroke-width="0.5"/>';
+    s += '<text x="' + (mL - 8) + '" y="' + (yy + 4) + '" text-anchor="end" fill="#9ca3af" font-size="11">' + v + '</text>';
+  }
+
+  // X labels
+  var labelInterval = (rangeMax - rangeMin > 24) ? 3 : (rangeMax - rangeMin > 12) ? 2 : 1;
+  for (var m = rangeMin; m <= rangeMax; m++) {
+    var xx = xc(m);
+    if (m % labelInterval === 0) {
+      s += '<text x="' + xx + '" y="' + (svgH - 8) + '" text-anchor="middle" fill="#9ca3af" font-size="10">' + fmtMonthLabel(m) + '</text>';
+    }
+    s += '<line x1="' + xx + '" y1="' + (mT + chartH) + '" x2="' + xx + '" y2="' + (mT + chartH + 3) + '" stroke="#d1d5db" stroke-width="0.5"/>';
+  }
+
+  // Percentile fill & lines
+  var pIdx = [0, 2, 3, 4, 6]; // P3, P25, P50, P75, P97
+  var pLbl = ['3%', '25%', '50%', '75%', '97%'];
+  if (stdInRange.length >= 2) {
+    // P3-P97 fill
+    var pathUp = '', pathDown = '';
+    for (var i = 0; i < stdInRange.length; i++) {
+      var a = stdInRange[i];
+      var d = GROWTH_STANDARDS[type][gender][a];
+      var cmd = i === 0 ? 'M' : 'L';
+      pathUp += cmd + xc(a) + ',' + yc(d[6]) + ' ';
+    }
+    for (var i = stdInRange.length - 1; i >= 0; i--) {
+      var a = stdInRange[i];
+      var d = GROWTH_STANDARDS[type][gender][a];
+      pathDown += 'L' + xc(a) + ',' + yc(d[0]) + ' ';
+    }
+    s += '<path d="' + pathUp + pathDown + 'Z" fill="rgba(186,230,253,0.4)" stroke="none"/>';
+
+    // Lines
+    var lColors = ['#93c5fd', '#93c5fd', '#60a5fa', '#93c5fd', '#93c5fd'];
+    var lWidths = [0.8, 0.8, 1.2, 0.8, 0.8];
+    for (var li = 0; li < pIdx.length; li++) {
+      var pi = pIdx[li];
+      var lp = '';
+      for (var i = 0; i < stdInRange.length; i++) {
+        var a = stdInRange[i];
+        var d = GROWTH_STANDARDS[type][gender][a];
+        lp += (i === 0 ? 'M' : 'L') + xc(a) + ',' + yc(d[pi]) + ' ';
+      }
+      s += '<path d="' + lp + '" fill="none" stroke="' + lColors[li] + '" stroke-width="' + lWidths[li] + '"/>';
+      // End label
+      var lastA = stdInRange[stdInRange.length - 1];
+      var lastD = GROWTH_STANDARDS[type][gender][lastA];
+      s += '<text x="' + (xc(lastA) + 6) + '" y="' + (yc(lastD[pi]) + 3) + '" fill="#60a5fa" font-size="10" font-weight="500">' + pLbl[li] + '</text>';
+    }
+  }
+
+  // Today line
+  if (currentAge >= rangeMin && currentAge <= rangeMax) {
+    var tx = xc(currentAge);
+    s += '<line x1="' + tx + '" y1="' + mT + '" x2="' + tx + '" y2="' + (mT + chartH) + '" stroke="#ea580c" stroke-width="1.5" stroke-dasharray="6,4"/>';
+    s += '<rect x="' + (tx - 16) + '" y="' + (mT + chartH - 28) + '" width="32" height="18" rx="9" fill="#ea580c"/>';
+    s += '<text x="' + tx + '" y="' + (mT + chartH - 16) + '" text-anchor="middle" fill="white" font-size="10" font-weight="600">今天</text>';
+  }
+
+  // Data line & points
+  var vp = dataPoints.filter(function(p) { return p.age >= rangeMin - 1 && p.age <= rangeMax + 1; });
+  if (vp.length >= 2) {
+    var dp = '';
+    for (var i = 0; i < vp.length; i++) {
+      dp += (i === 0 ? 'M' : 'L') + xc(vp[i].age) + ',' + yc(vp[i].val) + ' ';
+    }
+    s += '<path d="' + dp + '" fill="none" stroke="#22c55e" stroke-width="2"/>';
+  }
+  if (vp.length > 0) {
+    for (var i = 0; i < vp.length; i++) {
+      s += '<circle cx="' + xc(vp[i].age) + '" cy="' + yc(vp[i].val) + '" r="4" fill="#22c55e" stroke="white" stroke-width="1.5"/>';
+    }
+  }
+
+  // Axes
+  s += '<line x1="' + mL + '" y1="' + mT + '" x2="' + mL + '" y2="' + (mT + chartH) + '" stroke="#d1d5db" stroke-width="1"/>';
+  s += '<line x1="' + mL + '" y1="' + (mT + chartH) + '" x2="' + (svgW - mR) + '" y2="' + (mT + chartH) + '" stroke="#d1d5db" stroke-width="1"/>';
+  s += '</svg>';
+
+  var unitMap = { height: '身高 (cm)', weight: '体重 (kg)', headCirc: '头围 (cm)', bmi: 'BMI (kg/m²)' };
+  container.innerHTML =
+    '<div class="chart-y-label">' + unitMap[type] + '</div>' +
+    '<div class="chart-wrap">' + s + '</div>';
+
+  // Scroll to show current age in center
+  var wrap = container.querySelector('.chart-wrap');
+  if (wrap && wrap.scrollWidth > wrap.clientWidth) {
+    wrap.scrollLeft = Math.max(0, xc(currentAge) - wrap.clientWidth / 2);
+  }
+}
+
+function fmtMonthLabel(months) {
+  if (months < 12) return months + '个月';
+  var y = Math.floor(months / 12);
+  var m = months % 12;
+  if (m === 0) return y + '岁';
+  return y + '岁' + m + '月';
+}
+
+function niceStep(min, max, ticks) {
+  var range = max - min;
+  if (range <= 0) return 1;
+  var rough = range / ticks;
+  var mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  var r = rough / mag;
+  var nice = r <= 1.5 ? 1 : r <= 3 ? 2 : r <= 7 ? 5 : 10;
+  return nice * mag;
+}
+
+// ── Modal ──
+function openAddModal() {
+  document.getElementById('modalTitle').textContent = '添加记录';
+  document.getElementById('editId').value = '';
+  document.getElementById('mDate').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('mHeight').value = '';
+  document.getElementById('mWeight').value = '';
+  document.getElementById('mHeadCirc').value = '';
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function openEditModal(id) {
+  var rec = null;
+  for (var i = 0; i < childData.measurements.length; i++) {
+    if (childData.measurements[i].id === id) { rec = childData.measurements[i]; break; }
+  }
+  if (!rec) return;
+  document.getElementById('modalTitle').textContent = '编辑记录';
+  document.getElementById('editId').value = id;
+  document.getElementById('mDate').value = rec.date;
+  document.getElementById('mHeight').value = rec.height != null ? rec.height : '';
+  document.getElementById('mWeight').value = rec.weight != null ? rec.weight : '';
+  document.getElementById('mHeadCirc').value = rec.headCirc != null ? rec.headCirc : '';
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+
+async function saveMeasurement() {
+  var editId = document.getElementById('editId').value;
+  var date = document.getElementById('mDate').value;
+  if (!date) { alert('请填写日期'); return; }
+  var w = document.getElementById('mWeight').value;
+  var h = document.getElementById('mHeight').value;
+  var hc = document.getElementById('mHeadCirc').value;
+  if (!w && !h && !hc) { alert('请至少填写一项测量值'); return; }
+
+  var body = {
+    date: date,
+    weight: w ? +w : null,
+    height: h ? +h : null,
+    headCirc: hc ? +hc : null
+  };
+
+  var res;
+  if (editId) {
+    res = await fetch('/api/children/' + childId + '/measurements/' + editId, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+  } else {
+    res = await fetch('/api/children/' + childId + '/measurements', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+  }
+  if (!res.ok) { alert('保存失败'); return; }
+  closeModal();
+  var r = await fetch('/api/children/' + childId);
+  childData = await r.json();
+  if (!childData.measurements) childData.measurements = [];
+  renderContent();
+}
+
+async function deleteMeasurement(id) {
+  if (!confirm('确定删除此记录？')) return;
+  var res = await fetch('/api/children/' + childId + '/measurements/' + id, { method: 'DELETE' });
+  if (!res.ok) { alert('删除失败'); return; }
+  childData.measurements = childData.measurements.filter(function(m) { return m.id !== id; });
+  renderContent();
+}
+
+document.getElementById('modalOverlay').addEventListener('click', function(e) {
+  if (e.target === e.currentTarget) closeModal();
+});
+
+init();
+</script>
+</body>
+</html>

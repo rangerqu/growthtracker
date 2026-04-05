@@ -29,6 +29,11 @@ router.get('/', (req, res) => {
       const d = JSON.parse(fs.readFileSync(path.join(DATA_DIR, f), 'utf-8'));
       const passCount = Object.values(d.assessments || {})
         .filter(a => a.status === 'pass').length;
+      // 最近一次测量记录
+      const measurements = d.measurements || [];
+      const lastMeasurement = measurements.length > 0
+        ? measurements[measurements.length - 1]
+        : null;
       return {
         id: d.id,
         name: d.name,
@@ -37,6 +42,7 @@ router.get('/', (req, res) => {
         createdAt: d.createdAt,
         updatedAt: d.updatedAt,
         passCount,
+        lastMeasurement,
       };
     });
     list.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
@@ -100,6 +106,79 @@ router.put('/:id/assessments', (req, res) => {
   data.assessments = { ...data.assessments, ...incoming };
   data.updatedAt = new Date().toISOString();
   res.json(writeChild(data));
+});
+
+// ── 生长记录 API ──
+
+// POST /api/children/:id/measurements — 添加测量记录
+router.post('/:id/measurements', (req, res) => {
+  const data = readChild(req.params.id);
+  if (!data) return res.status(404).json({ error: '未找到' });
+  const { date, weight, height, headCirc } = req.body;
+  if (!date) return res.status(400).json({ error: '缺少日期' });
+
+  if (!data.measurements) data.measurements = [];
+
+  // 计算月龄
+  const birth = new Date(data.birthDate);
+  const mDate = new Date(date);
+  const ageMonths = +((mDate - birth) / (1000 * 60 * 60 * 24 * 30.4375)).toFixed(1);
+
+  const record = {
+    id: uuidv4(),
+    date,
+    ageMonths,
+    weight: weight != null ? +weight : null,
+    height: height != null ? +height : null,
+    headCirc: headCirc != null ? +headCirc : null,
+  };
+  data.measurements.push(record);
+  data.measurements.sort((a, b) => a.date.localeCompare(b.date));
+  data.updatedAt = new Date().toISOString();
+  writeChild(data);
+  res.status(201).json(record);
+});
+
+// PUT /api/children/:id/measurements/:mid — 修改测量记录
+router.put('/:id/measurements/:mid', (req, res) => {
+  const data = readChild(req.params.id);
+  if (!data) return res.status(404).json({ error: '未找到' });
+  if (!data.measurements) return res.status(404).json({ error: '记录未找到' });
+
+  const idx = data.measurements.findIndex(m => m.id === req.params.mid);
+  if (idx === -1) return res.status(404).json({ error: '记录未找到' });
+
+  const { date, weight, height, headCirc } = req.body;
+  const rec = data.measurements[idx];
+  if (date) {
+    rec.date = date;
+    const birth = new Date(data.birthDate);
+    const mDate = new Date(date);
+    rec.ageMonths = +((mDate - birth) / (1000 * 60 * 60 * 24 * 30.4375)).toFixed(1);
+  }
+  if (weight !== undefined) rec.weight = weight != null ? +weight : null;
+  if (height !== undefined) rec.height = height != null ? +height : null;
+  if (headCirc !== undefined) rec.headCirc = headCirc != null ? +headCirc : null;
+
+  data.measurements.sort((a, b) => a.date.localeCompare(b.date));
+  data.updatedAt = new Date().toISOString();
+  writeChild(data);
+  res.json(rec);
+});
+
+// DELETE /api/children/:id/measurements/:mid — 删除测量记录
+router.delete('/:id/measurements/:mid', (req, res) => {
+  const data = readChild(req.params.id);
+  if (!data) return res.status(404).json({ error: '未找到' });
+  if (!data.measurements) return res.status(404).json({ error: '记录未找到' });
+
+  const idx = data.measurements.findIndex(m => m.id === req.params.mid);
+  if (idx === -1) return res.status(404).json({ error: '记录未找到' });
+
+  data.measurements.splice(idx, 1);
+  data.updatedAt = new Date().toISOString();
+  writeChild(data);
+  res.status(204).end();
 });
 
 // PATCH /api/children/:id/assessments/:itemId — 更新单个测查项
