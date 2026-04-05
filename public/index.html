@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>儿童发育行为评估量表</title>
+<script src="/js/scale-data.js"></script>
+<script src="/js/scoring.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --blue: #2563eb;
+    --blue-light: #eff6ff;
+    --blue-mid: #bfdbfe;
+    --green: #059669;
+    --green-bg: #d1fae5;
+    --red: #dc2626;
+    --red-bg: #fee2e2;
+    --gray: #6b7280;
+    --gray-bg: #f3f4f6;
+    --gray-border: #e5e7eb;
+    --text: #111827;
+    --text-2: #374151;
+    --text-3: #6b7280;
+    --white: #ffffff;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  body {
+    font-family: -apple-system, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    background: #f8fafc;
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  /* ── Header ── */
+  .app-header {
+    background: var(--white);
+    border-bottom: 1px solid var(--gray-border);
+    padding: 20px 24px 18px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .app-header h1 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.3px;
+  }
+  .app-header .subtitle {
+    font-size: 12px;
+    color: var(--text-3);
+    margin-top: 2px;
+    letter-spacing: 0.3px;
+  }
+
+  /* ── Main Container ── */
+  .container {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 24px 16px 48px;
+  }
+
+  /* ── Add Button ── */
+  .btn-add {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--blue);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 11px 20px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    justify-content: center;
+    margin-bottom: 20px;
+    transition: background 0.15s, transform 0.1s;
+    letter-spacing: 0.2px;
+  }
+  .btn-add:hover { background: #1d4ed8; }
+  .btn-add:active { transform: scale(0.99); }
+  .btn-add .icon { font-size: 18px; font-weight: 400; line-height: 1; }
+
+  /* ── Child Cards ── */
+  .child-list { display: flex; flex-direction: column; gap: 12px; }
+
+  .child-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--gray-border);
+    overflow: hidden;
+    transition: box-shadow 0.2s;
+  }
+  .child-card:hover { box-shadow: var(--shadow-md); }
+
+  .card-body { padding: 16px 18px 12px; }
+
+  .card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .child-name {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .gender-badge {
+    font-size: 13px;
+    padding: 1px 8px;
+    border-radius: 99px;
+    font-weight: 500;
+  }
+  .gender-male  { background: #dbeafe; color: #1d4ed8; }
+  .gender-female{ background: #fce7f3; color: #be185d; }
+
+  .child-meta {
+    font-size: 13px;
+    color: var(--text-3);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+    margin-bottom: 12px;
+  }
+  .child-meta span { display: flex; align-items: center; gap: 4px; }
+
+  /* Progress Bar */
+  .progress-wrap { margin-bottom: 14px; }
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-3);
+    margin-bottom: 5px;
+  }
+  .progress-label .count { color: var(--blue); font-weight: 600; }
+  .progress-bar {
+    height: 6px;
+    background: var(--gray-bg);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--blue);
+    border-radius: 99px;
+    transition: width 0.5s ease;
+  }
+
+  /* Card Actions */
+  .card-actions {
+    display: flex;
+    gap: 8px;
+    padding: 10px 18px 14px;
+    border-top: 1px solid var(--gray-border);
+    background: #fafafa;
+  }
+  .btn-action {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+    letter-spacing: 0.2px;
+  }
+  .btn-assess {
+    background: var(--blue);
+    color: white;
+  }
+  .btn-assess:hover { background: #1d4ed8; }
+  .btn-report {
+    background: var(--gray-bg);
+    color: var(--text-2);
+    border: 1px solid var(--gray-border);
+  }
+  .btn-report:hover { background: #e9ecef; }
+
+  /* ── Empty State ── */
+  .empty-state {
+    text-align: center;
+    padding: 60px 24px;
+    color: var(--text-3);
+  }
+  .empty-state .empty-icon { font-size: 48px; margin-bottom: 16px; }
+  .empty-state p { font-size: 15px; line-height: 1.7; }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; padding: 16px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+  .modal {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+    width: 100%; max-width: 400px;
+    padding: 24px;
+    transform: translateY(12px);
+    transition: transform 0.2s;
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+
+  .modal h2 {
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: var(--text);
+  }
+
+  .form-group { margin-bottom: 16px; }
+  .form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-2);
+    margin-bottom: 6px;
+  }
+  .form-group input[type="text"],
+  .form-group input[type="date"] {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1.5px solid var(--gray-border);
+    border-radius: var(--radius-sm);
+    font-size: 15px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+    font-family: inherit;
+    background: var(--white);
+  }
+  .form-group input:focus { border-color: var(--blue); }
+
+  .radio-group { display: flex; gap: 10px; }
+  .radio-btn {
+    flex: 1; padding: 8px;
+    border: 1.5px solid var(--gray-border);
+    border-radius: var(--radius-sm);
+    text-align: center;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text-3);
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .radio-btn.selected-male  { border-color: #3b82f6; background: #eff6ff; color: #1d4ed8; }
+  .radio-btn.selected-female{ border-color: #ec4899; background: #fdf2f8; color: #be185d; }
+
+  .modal-actions { display: flex; gap: 10px; margin-top: 22px; }
+  .btn-cancel {
+    flex: 1; padding: 10px;
+    background: var(--gray-bg);
+    border: 1px solid var(--gray-border);
+    border-radius: var(--radius-sm);
+    font-size: 14px; font-weight: 600;
+    cursor: pointer; color: var(--text-2);
+    transition: background 0.15s;
+  }
+  .btn-cancel:hover { background: #e9ecef; }
+  .btn-confirm {
+    flex: 1; padding: 10px;
+    background: var(--blue); color: white;
+    border: none; border-radius: var(--radius-sm);
+    font-size: 14px; font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-confirm:hover { background: #1d4ed8; }
+  .btn-confirm:disabled { background: var(--gray); cursor: not-allowed; }
+
+  /* Loading */
+  .loading {
+    text-align: center; padding: 40px;
+    color: var(--text-3); font-size: 14px;
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <h1>儿童发育行为评估量表</h1>
+  <div class="subtitle">WS/T 580—2017 &nbsp;·&nbsp; 0～6岁</div>
+</header>
+
+<main class="container">
+  <button class="btn-add" id="btnAdd">
+    <span class="icon">＋</span>
+    <span>新建孩子档案</span>
+  </button>
+
+  <div id="childList" class="child-list">
+    <div class="loading">加载中…</div>
+  </div>
+</main>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2>新建孩子档案</h2>
+
+    <div class="form-group">
+      <label>姓名 <span style="color:#dc2626">*</span></label>
+      <input type="text" id="inputName" placeholder="请输入孩子姓名" maxlength="20">
+    </div>
+
+    <div class="form-group">
+      <label>性别</label>
+      <div class="radio-group">
+        <div class="radio-btn" id="btnMale" onclick="selectGender('male')">♂ 男</div>
+        <div class="radio-btn" id="btnFemale" onclick="selectGender('female')">♀ 女</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>出生日期 <span style="color:#dc2626">*</span></label>
+      <input type="date" id="inputBirth" max="">
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" id="btnCancel">取消</button>
+      <button class="btn-confirm" id="btnConfirm">创建档案</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const TOTAL_ITEMS = 261;
+  let selectedGender = 'male';
+
+  // 初始化日期最大值
+  document.getElementById('inputBirth').max = new Date().toISOString().split('T')[0];
+  // 默认选中男
+  document.getElementById('btnMale').classList.add('selected-male');
+
+  function selectGender(g) {
+    selectedGender = g;
+    document.getElementById('btnMale').className = 'radio-btn' + (g === 'male' ? ' selected-male' : '');
+    document.getElementById('btnFemale').className = 'radio-btn' + (g === 'female' ? ' selected-female' : '');
+  }
+
+  // 加载孩子列表
+  async function loadChildren() {
+    const list = document.getElementById('childList');
+    try {
+      const res = await fetch('/api/children');
+      const children = await res.json();
+      renderChildren(children);
+    } catch {
+      list.innerHTML = '<div class="empty-state"><p>加载失败，请刷新重试</p></div>';
+    }
+  }
+
+  function renderChildren(children) {
+    const list = document.getElementById('childList');
+    if (!children.length) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">👶</div>
+          <p>还没有孩子档案<br>点击上方按钮创建</p>
+        </div>`;
+      return;
+    }
+    list.innerHTML = children.map(c => {
+      const ageStr = formatAge(getAgeMonths(c.birthDate));
+      const pct = Math.round((c.passCount / TOTAL_ITEMS) * 100);
+      const genderLabel = c.gender === 'male' ? '♂ 男' : '♀ 女';
+      const genderClass = c.gender === 'male' ? 'gender-male' : 'gender-female';
+      const birth = c.birthDate.replace(/-/g, '/');
+      return `
+        <div class="child-card">
+          <div class="card-body">
+            <div class="card-top">
+              <div class="child-name">
+                ${c.name}
+                <span class="gender-badge ${genderClass}">${genderLabel}</span>
+              </div>
+            </div>
+            <div class="child-meta">
+              <span>📅 ${birth}</span>
+              <span>🎂 ${ageStr}</span>
+            </div>
+            <div class="progress-wrap">
+              <div class="progress-label">
+                <span>已完成</span>
+                <span class="count">${c.passCount} / ${TOTAL_ITEMS}</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width:${pct}%"></div>
+              </div>
+            </div>
+          </div>
+          <div class="card-actions">
+            <button class="btn-action btn-assess" onclick="location.href='assessment.html?id=${c.id}'">继续评估</button>
+            <button class="btn-action btn-report" onclick="location.href='report.html?id=${c.id}'">查看报告</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // Modal 逻辑
+  document.getElementById('btnAdd').onclick = () => {
+    document.getElementById('modalOverlay').classList.add('open');
+    document.getElementById('inputName').focus();
+  };
+  document.getElementById('btnCancel').onclick = closeModal;
+  document.getElementById('modalOverlay').onclick = e => {
+    if (e.target === document.getElementById('modalOverlay')) closeModal();
+  };
+  function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('open');
+    document.getElementById('inputName').value = '';
+    document.getElementById('inputBirth').value = '';
+    selectGender('male');
+  }
+
+  document.getElementById('btnConfirm').onclick = async () => {
+    const name = document.getElementById('inputName').value.trim();
+    const birthDate = document.getElementById('inputBirth').value;
+    if (!name) { document.getElementById('inputName').focus(); return; }
+    if (!birthDate) { document.getElementById('inputBirth').focus(); return; }
+
+    const btn = document.getElementById('btnConfirm');
+    btn.disabled = true; btn.textContent = '创建中…';
+
+    try {
+      const res = await fetch('/api/children', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, gender: selectedGender, birthDate }),
+      });
+      if (res.ok) {
+        closeModal();
+        loadChildren();
+      }
+    } finally {
+      btn.disabled = false; btn.textContent = '创建档案';
+    }
+  };
+
+  // Enter 提交
+  document.getElementById('inputName').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('inputBirth').focus();
+  });
+
+  loadChildren();
+</script>
+</body>
+</html>

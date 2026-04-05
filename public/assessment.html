@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>评估 - 儿童发育行为评估量表</title>
+<script src="/js/scale-data.js"></script>
+<script src="/js/scoring.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --blue: #2563eb;
+    --blue-light: #eff6ff;
+    --blue-mid: #bfdbfe;
+    --green: #059669;
+    --green-bg: #d1fae5;
+    --red: #dc2626;
+    --red-bg: #fee2e2;
+    --orange: #d97706;
+    --orange-bg: #fef3c7;
+    --gray: #6b7280;
+    --gray-bg: #f3f4f6;
+    --gray-border: #e5e7eb;
+    --text: #111827;
+    --text-2: #374151;
+    --text-3: #6b7280;
+    --white: #ffffff;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+    --radius: 10px;
+    --radius-sm: 7px;
+    --header-h: 110px;
+    --sidebar-w: 176px;
+  }
+
+  html, body { height: 100%; }
+
+  body {
+    font-family: -apple-system, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    background: #f8fafc;
+    color: var(--text);
+    overflow: hidden;
+  }
+
+  /* ── Fixed Header ── */
+  .app-header {
+    position: fixed; top: 0; left: 0; right: 0;
+    background: var(--white);
+    border-bottom: 1px solid var(--gray-border);
+    z-index: 20;
+    padding: 12px 16px 10px;
+  }
+
+  .header-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .btn-back {
+    background: none; border: none;
+    color: var(--blue); font-size: 14px;
+    cursor: pointer; padding: 2px 0;
+    display: flex; align-items: center; gap: 4px;
+    white-space: nowrap; font-weight: 500;
+  }
+  .header-info { flex: 1; min-width: 0; }
+  .header-name {
+    font-size: 16px; font-weight: 700;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .header-age { font-size: 12px; color: var(--text-3); margin-top: 1px; }
+
+  .save-status {
+    font-size: 12px; color: var(--green); white-space: nowrap;
+    transition: opacity 0.3s;
+  }
+  .save-status.saving { color: var(--gray); }
+
+  .progress-wrap { }
+  .progress-label {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--text-3); margin-bottom: 4px;
+  }
+  .progress-label .count { color: var(--blue); font-weight: 600; }
+  .progress-bar {
+    height: 5px; background: var(--gray-bg);
+    border-radius: 99px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; background: var(--blue);
+    border-radius: 99px; transition: width 0.4s ease;
+  }
+
+  /* ── Layout ── */
+  .layout {
+    display: flex;
+    height: 100vh;
+    padding-top: var(--header-h);
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: var(--sidebar-w);
+    flex-shrink: 0;
+    background: var(--white);
+    border-right: 1px solid var(--gray-border);
+    overflow-y: auto;
+    height: 100%;
+    padding: 12px 0 24px;
+  }
+
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-track { background: transparent; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--gray-border); border-radius: 2px; }
+
+  .sidebar-domain { margin-bottom: 4px; }
+  .sidebar-domain-title {
+    padding: 6px 14px 4px;
+    font-size: 11px; font-weight: 700;
+    color: var(--text-3); text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .sidebar-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 14px;
+    font-size: 12px; color: var(--text-3);
+    cursor: pointer;
+    border-radius: 0;
+    transition: background 0.1s, color 0.1s;
+    border-left: 3px solid transparent;
+  }
+  .sidebar-item:hover { background: var(--gray-bg); color: var(--text-2); }
+  .sidebar-item.active {
+    background: var(--blue-light);
+    color: var(--blue);
+    border-left-color: var(--blue);
+    font-weight: 600;
+  }
+
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%; flex-shrink: 0;
+  }
+  .dot-green  { background: var(--green); }
+  .dot-orange { background: var(--orange); }
+  .dot-gray   { background: #d1d5db; }
+
+  /* ── Main Content ── */
+  .main {
+    flex: 1; overflow-y: auto; height: 100%;
+    padding: 20px 16px 60px;
+  }
+
+  .main::-webkit-scrollbar { width: 6px; }
+  .main::-webkit-scrollbar-track { background: transparent; }
+  .main::-webkit-scrollbar-thumb { background: var(--gray-border); border-radius: 3px; }
+
+  /* ── Domain Section ── */
+  .domain-section { margin-bottom: 28px; }
+
+  .domain-header {
+    font-size: 16px; font-weight: 700;
+    color: var(--text);
+    padding: 10px 0 12px;
+    display: flex; align-items: center; gap: 8px;
+    border-bottom: 2px solid var(--blue);
+    margin-bottom: 14px;
+  }
+  .domain-count {
+    font-size: 12px; font-weight: 500;
+    color: var(--blue); background: var(--blue-light);
+    padding: 2px 8px; border-radius: 99px;
+    margin-left: auto;
+  }
+
+  /* ── Age Group ── */
+  .age-group { margin-bottom: 16px; }
+
+  .age-group-header {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 8px;
+  }
+  .age-group-line {
+    flex: 1; height: 1px; background: var(--gray-border);
+  }
+  .age-group-label {
+    font-size: 12px; font-weight: 600;
+    color: var(--text-3); white-space: nowrap;
+    padding: 0 4px;
+  }
+  .age-group-actions { display: flex; gap: 6px; }
+  .btn-bulk {
+    font-size: 11px; padding: 3px 8px;
+    border-radius: 5px; border: 1px solid;
+    cursor: pointer; font-weight: 500;
+    transition: all 0.15s;
+  }
+  .btn-bulk-pass {
+    border-color: var(--green); color: var(--green); background: var(--white);
+  }
+  .btn-bulk-pass:hover { background: var(--green-bg); }
+  .btn-bulk-untested {
+    border-color: var(--gray-border); color: var(--text-3); background: var(--white);
+  }
+  .btn-bulk-untested:hover { background: var(--gray-bg); }
+
+  /* ── Item Card ── */
+  .item-card {
+    background: var(--white);
+    border: 1.5px solid var(--gray-border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .item-card.status-pass {
+    border-color: #a7f3d0; background: #f0fdf4;
+  }
+  .item-card.status-fail {
+    border-color: #fecaca; background: #fff5f5;
+  }
+
+  .item-top {
+    display: flex; align-items: flex-start; gap: 10px;
+  }
+
+  .item-desc-wrap { flex: 1; min-width: 0; }
+  .item-desc {
+    font-size: 14px; color: var(--text);
+    line-height: 1.5; font-weight: 500;
+    display: flex; align-items: flex-start; gap: 6px;
+    flex-wrap: wrap;
+  }
+  .item-num {
+    font-size: 11px; color: var(--text-3);
+    background: var(--gray-bg);
+    padding: 1px 6px; border-radius: 4px;
+    flex-shrink: 0; margin-top: 2px;
+  }
+  .badge-r {
+    font-size: 10px; color: var(--gray);
+    background: var(--gray-bg);
+    padding: 1px 5px; border-radius: 4px;
+    flex-shrink: 0; margin-top: 2px;
+  }
+  .badge-star {
+    font-size: 10px; color: var(--orange);
+    background: var(--orange-bg);
+    padding: 1px 5px; border-radius: 4px;
+    flex-shrink: 0; margin-top: 2px;
+  }
+
+  /* Status Buttons */
+  .item-btns {
+    display: flex; gap: 6px; flex-shrink: 0;
+  }
+  .btn-status {
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer;
+    border: 1.5px solid var(--gray-border);
+    background: var(--white); color: var(--text-3);
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-status:hover { border-color: #9ca3af; color: var(--text-2); }
+
+  .btn-status.active-pass {
+    background: var(--green-bg); border-color: var(--green); color: var(--green);
+  }
+  .btn-status.active-fail {
+    background: var(--red-bg); border-color: var(--red); color: var(--red);
+  }
+  .btn-status.active-untested {
+    background: var(--gray-bg); border-color: #9ca3af; color: var(--gray);
+  }
+
+  /* Date input area */
+  .item-date-row {
+    display: none; margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #dcfce7;
+    align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .item-date-row.visible { display: flex; }
+
+  .date-label { font-size: 12px; color: var(--text-3); flex-shrink: 0; }
+  .date-input {
+    padding: 5px 10px;
+    border: 1.5px solid var(--gray-border);
+    border-radius: 6px; font-size: 13px;
+    color: var(--text); outline: none;
+    font-family: inherit; background: var(--white);
+    transition: border-color 0.15s;
+  }
+  .date-input:focus { border-color: var(--blue); }
+
+  .date-unknown {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 12px; color: var(--text-3); cursor: pointer;
+    user-select: none;
+  }
+  .date-unknown input { cursor: pointer; accent-color: var(--green); }
+
+  /* ── Quick Modal ── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; padding: 16px;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+  .modal {
+    background: var(--white); border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+    width: 100%; max-width: 360px;
+    padding: 22px 20px 20px;
+    transform: translateY(10px); transition: transform 0.2s;
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+
+  .modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 10px; }
+  .modal p { font-size: 13px; color: var(--text-2); line-height: 1.7; margin-bottom: 14px; }
+
+  .modal-age-input {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 18px;
+  }
+  .modal-age-input label { font-size: 13px; color: var(--text-2); white-space: nowrap; }
+  .modal-age-input input {
+    width: 80px; padding: 7px 10px;
+    border: 1.5px solid var(--gray-border); border-radius: var(--radius-sm);
+    font-size: 14px; outline: none; font-family: inherit;
+    transition: border-color 0.15s;
+  }
+  .modal-age-input input:focus { border-color: var(--blue); }
+  .modal-age-input span { font-size: 13px; color: var(--text-3); }
+
+  .modal-actions { display: flex; gap: 8px; }
+  .btn-modal-skip {
+    flex: 1; padding: 9px;
+    background: var(--gray-bg); border: 1px solid var(--gray-border);
+    border-radius: var(--radius-sm); font-size: 13px; font-weight: 600;
+    cursor: pointer; color: var(--text-2); transition: background 0.15s;
+  }
+  .btn-modal-skip:hover { background: #e9ecef; }
+  .btn-modal-confirm {
+    flex: 1.5; padding: 9px;
+    background: var(--blue); color: white;
+    border: none; border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .btn-modal-confirm:hover { background: #1d4ed8; }
+
+  /* Mobile adjustments */
+  @media (max-width: 600px) {
+    .sidebar { width: 130px; }
+    :root { --sidebar-w: 130px; }
+    .sidebar-item { font-size: 11px; padding: 5px 10px; }
+    .item-btns { flex-direction: column; gap: 4px; }
+    .btn-status { font-size: 11px; padding: 4px 8px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Fixed Header -->
+<header class="app-header" id="appHeader">
+  <div class="header-top">
+    <button class="btn-back" onclick="location.href='/'">← 返回</button>
+    <div class="header-info">
+      <div class="header-name" id="headerName">加载中…</div>
+      <div class="header-age" id="headerAge"></div>
+    </div>
+    <div class="save-status" id="saveStatus"></div>
+  </div>
+  <div class="progress-wrap">
+    <div class="progress-label">
+      <span>评估进度</span>
+      <span class="count"><span id="passCountLabel">0</span> / 261</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill" style="width:0%"></div>
+    </div>
+  </div>
+</header>
+
+<!-- Layout -->
+<div class="layout">
+  <!-- Sidebar -->
+  <nav class="sidebar" id="sidebar"></nav>
+
+  <!-- Main -->
+  <main class="main" id="main"></main>
+</div>
+
+<!-- Quick Entry Modal -->
+<div class="modal-overlay" id="quickModal">
+  <div class="modal">
+    <h3>快速历史录入</h3>
+    <p id="quickModalText">孩子已 <strong id="quickAge">—</strong>，是否将某月龄之前的项目批量标为"通过（日期不详）"？</p>
+    <div class="modal-age-input">
+      <label>标记</label>
+      <input type="number" id="quickAgeInput" min="0" max="84" step="1">
+      <span>月龄之前全部通过</span>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-skip" id="btnSkipQuick">跳过</button>
+      <button class="btn-modal-confirm" id="btnConfirmQuick">确认批量通过</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──
+let childId = new URLSearchParams(location.search).get('id');
+let childData = null;
+let saveTimer = null;
+let headerH = 110;
+
+// Measure actual header height
+function updateHeaderH() {
+  headerH = document.getElementById('appHeader').offsetHeight;
+  document.documentElement.style.setProperty('--header-h', headerH + 'px');
+}
+
+// ── Init ──
+async function init() {
+  if (!childId) { location.href = '/'; return; }
+  const res = await fetch(`/api/children/${childId}`);
+  if (!res.ok) { location.href = '/'; return; }
+  childData = await res.json();
+
+  document.getElementById('headerName').textContent = childData.name + ' 的评估';
+  const age = getAgeMonths(childData.birthDate);
+  document.getElementById('headerAge').textContent =
+    (childData.gender === 'male' ? '♂ 男' : '♀ 女') + ' · ' + formatAge(age);
+
+  updateHeaderH();
+  renderSidebar();
+  renderMain();
+  updateProgress();
+
+  // Show quick modal if not yet done and child is older than 6 months
+  const hasAny = Object.keys(childData.assessments).length > 0;
+  if (!hasAny && age > 6) {
+    showQuickModal(age);
+  }
+}
+
+// ── Progress ──
+function updateProgress() {
+  const pass = Object.values(childData.assessments).filter(a => a.status === 'pass').length;
+  document.getElementById('passCountLabel').textContent = pass;
+  document.getElementById('progressFill').style.width = (pass / 261 * 100) + '%';
+}
+
+// ── Sidebar ──
+function getSidebarDotClass(domainCode, groupId) {
+  const items = SCALE_ITEMS.filter(i => i.domain === domainCode && i.groupId === groupId);
+  const passCount = items.filter(i => (childData.assessments[i.id] || {}).status === 'pass').length;
+  if (passCount === items.length) return 'dot-green';
+  if (passCount > 0) return 'dot-orange';
+  return 'dot-gray';
+}
+
+function renderSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  let html = '';
+  for (const domain of DOMAINS) {
+    html += `<div class="sidebar-domain">
+      <div class="sidebar-domain-title">${domain.name}</div>`;
+    const groups = AGE_GROUPS.filter(g =>
+      SCALE_ITEMS.some(i => i.domain === domain.code && i.groupId === g.groupId)
+    );
+    for (const g of groups) {
+      const dotClass = getSidebarDotClass(domain.code, g.groupId);
+      html += `<div class="sidebar-item" id="nav-${domain.code}-${g.groupId}"
+        onclick="scrollToSection('${domain.code}','${g.groupId}')">
+        <span class="dot ${dotClass}" id="dot-${domain.code}-${g.groupId}"></span>
+        ${g.label}
+      </div>`;
+    }
+    html += '</div>';
+  }
+  sidebar.innerHTML = html;
+}
+
+function updateSidebarDot(domainCode, groupId) {
+  const dot = document.getElementById(`dot-${domainCode}-${groupId}`);
+  if (dot) {
+    dot.className = 'dot ' + getSidebarDotClass(domainCode, groupId);
+  }
+}
+
+function scrollToSection(domainCode, groupId) {
+  const el = document.getElementById(`section-${domainCode}-${groupId}`);
+  if (el) {
+    const top = el.getBoundingClientRect().top + document.getElementById('main').scrollTop - 12;
+    document.getElementById('main').scrollTo({ top, behavior: 'smooth' });
+  }
+}
+
+// ── Main Render ──
+function renderMain() {
+  const main = document.getElementById('main');
+  let html = '';
+
+  for (const domain of DOMAINS) {
+    const groups = AGE_GROUPS.filter(g =>
+      SCALE_ITEMS.some(i => i.domain === domain.code && i.groupId === g.groupId)
+    );
+    const domainItems = SCALE_ITEMS.filter(i => i.domain === domain.code);
+    const domainPass = domainItems.filter(i => (childData.assessments[i.id] || {}).status === 'pass').length;
+
+    html += `<div class="domain-section" id="domain-${domain.code}">
+      <div class="domain-header">
+        ${domain.name}
+        <span class="domain-count">${domainPass}/${domainItems.length}</span>
+      </div>`;
+
+    for (const g of groups) {
+      const items = SCALE_ITEMS.filter(i => i.domain === domain.code && i.groupId === g.groupId);
+      html += `<div class="age-group" id="section-${domain.code}-${g.groupId}">
+        <div class="age-group-header">
+          <div class="age-group-line"></div>
+          <div class="age-group-label">${g.label}</div>
+          <div class="age-group-line"></div>
+          <div class="age-group-actions">
+            <button class="btn-bulk btn-bulk-pass"
+              onclick="bulkStatus('${domain.code}','${g.groupId}','pass')">全部通过</button>
+            <button class="btn-bulk btn-bulk-untested"
+              onclick="bulkStatus('${domain.code}','${g.groupId}','untested')">清除</button>
+          </div>
+        </div>`;
+
+      for (const item of items) {
+        html += renderItemCard(item);
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+
+  main.innerHTML = html;
+
+  // Scroll spy
+  setupScrollSpy();
+}
+
+function renderItemCard(item) {
+  const rec = childData.assessments[item.id] || { status: 'untested', date: null };
+  const statusClass = rec.status === 'pass' ? 'status-pass' : rec.status === 'fail' ? 'status-fail' : '';
+  const dateRowVisible = rec.status === 'pass' ? 'visible' : '';
+  const dateVal = rec.date ? `value="${rec.date}"` : '';
+  const unknownChecked = (rec.status === 'pass' && !rec.date) ? 'checked' : '';
+
+  const noteBadge = item.note === 'R'
+    ? '<span class="badge-r">R</span>'
+    : item.note === '*'
+    ? '<span class="badge-star">⚠</span>'
+    : '';
+
+  return `<div class="item-card ${statusClass}" id="card-${item.id}">
+    <div class="item-top">
+      <div class="item-desc-wrap">
+        <div class="item-desc">
+          <span class="item-num">${item.id.split('_').pop()}</span>
+          ${item.description}
+          ${noteBadge}
+        </div>
+      </div>
+      <div class="item-btns">
+        <button class="btn-status ${rec.status === 'pass' ? 'active-pass' : ''}"
+          onclick="setStatus('${item.id}','${item.domain}','${item.groupId}','pass')">✓ 通过</button>
+        <button class="btn-status ${rec.status === 'fail' ? 'active-fail' : ''}"
+          onclick="setStatus('${item.id}','${item.domain}','${item.groupId}','fail')">✗ 未通过</button>
+        <button class="btn-status ${rec.status === 'untested' ? 'active-untested' : ''}"
+          onclick="setStatus('${item.id}','${item.domain}','${item.groupId}','untested')">— 未测</button>
+      </div>
+    </div>
+    <div class="item-date-row ${dateRowVisible}" id="daterow-${item.id}">
+      <span class="date-label">日期：</span>
+      <input type="date" class="date-input" id="date-${item.id}" ${dateVal}
+        max="${new Date().toISOString().split('T')[0]}"
+        onchange="setDate('${item.id}','${item.domain}','${item.groupId}',this.value)">
+      <label class="date-unknown">
+        <input type="checkbox" id="unknown-${item.id}" ${unknownChecked}
+          onchange="toggleUnknown('${item.id}','${item.domain}','${item.groupId}',this.checked)">
+        不记得日期
+      </label>
+    </div>
+  </div>`;
+}
+
+// ── Status Change ──
+function setStatus(itemId, domain, groupId, status) {
+  const prev = (childData.assessments[itemId] || {}).status;
+  if (prev === status) return;
+
+  childData.assessments[itemId] = { status, date: null };
+
+  // Update card
+  const card = document.getElementById(`card-${itemId}`);
+  card.className = 'item-card' + (status === 'pass' ? ' status-pass' : status === 'fail' ? ' status-fail' : '');
+
+  // Update buttons
+  const btns = card.querySelectorAll('.btn-status');
+  btns[0].className = 'btn-status' + (status === 'pass' ? ' active-pass' : '');
+  btns[1].className = 'btn-status' + (status === 'fail' ? ' active-fail' : '');
+  btns[2].className = 'btn-status' + (status === 'untested' ? ' active-untested' : '');
+
+  // Show/hide date row
+  const dateRow = document.getElementById(`daterow-${itemId}`);
+  if (status === 'pass') {
+    dateRow.classList.add('visible');
+    // Check if unknown checkbox should be checked (no date = unknown)
+    const dateInput = document.getElementById(`date-${itemId}`);
+    const unknownCb = document.getElementById(`unknown-${itemId}`);
+    if (!dateInput.value) {
+      unknownCb.checked = true;
+    }
+  } else {
+    dateRow.classList.remove('visible');
+    document.getElementById(`date-${itemId}`).value = '';
+    document.getElementById(`unknown-${itemId}`).checked = false;
+  }
+
+  updateSidebarDot(domain, groupId);
+  updateProgress();
+  scheduleSave(itemId, status, null);
+}
+
+function setDate(itemId, domain, groupId, dateVal) {
+  childData.assessments[itemId] = { status: 'pass', date: dateVal || null };
+  // Uncheck "unknown" if date is set
+  if (dateVal) {
+    document.getElementById(`unknown-${itemId}`).checked = false;
+  }
+  scheduleSave(itemId, 'pass', dateVal || null);
+}
+
+function toggleUnknown(itemId, domain, groupId, checked) {
+  if (checked) {
+    document.getElementById(`date-${itemId}`).value = '';
+    childData.assessments[itemId] = { status: 'pass', date: null };
+    scheduleSave(itemId, 'pass', null);
+  }
+}
+
+// ── Bulk Status ──
+async function bulkStatus(domainCode, groupId, status) {
+  const items = SCALE_ITEMS.filter(i => i.domain === domainCode && i.groupId === groupId);
+  const patch = {};
+  for (const item of items) {
+    patch[item.id] = { status, date: null };
+    childData.assessments[item.id] = { status, date: null };
+  }
+
+  // Re-render affected cards
+  for (const item of items) {
+    const card = document.getElementById(`card-${item.id}`);
+    if (card) {
+      const newCard = document.createElement('div');
+      newCard.innerHTML = renderItemCard(item);
+      card.replaceWith(newCard.firstChild);
+    }
+  }
+
+  updateSidebarDot(domainCode, groupId);
+  updateProgress();
+
+  showSaveStatus('saving');
+  try {
+    await fetch(`/api/children/${childId}/assessments`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assessments: patch }),
+    });
+    showSaveStatus('saved');
+  } catch {
+    showSaveStatus('');
+  }
+}
+
+// ── Auto Save ──
+function scheduleSave(itemId, status, date) {
+  showSaveStatus('saving');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => saveItem(itemId, status, date), 600);
+}
+
+async function saveItem(itemId, status, date) {
+  try {
+    await fetch(`/api/children/${childId}/assessments/${itemId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, date }),
+    });
+    showSaveStatus('saved');
+  } catch {
+    showSaveStatus('');
+  }
+}
+
+function showSaveStatus(state) {
+  const el = document.getElementById('saveStatus');
+  if (state === 'saving') { el.textContent = '保存中…'; el.className = 'save-status saving'; }
+  else if (state === 'saved') { el.textContent = '已保存 ✓'; el.className = 'save-status'; }
+  else { el.textContent = ''; }
+}
+
+// ── Quick Modal ──
+function showQuickModal(age) {
+  document.getElementById('quickAge').textContent = formatAge(age);
+
+  // Find suggested cutoff: largest group month <= age - 6
+  const suggested = Math.max(0, Math.round(age) - 6);
+  // round to nearest valid group
+  let suggestedMonth = 0;
+  for (const g of AGE_GROUPS) {
+    if (g.ageMonths <= suggested) suggestedMonth = g.ageMonths;
+  }
+  document.getElementById('quickAgeInput').value = suggestedMonth;
+  document.getElementById('quickModal').classList.add('open');
+}
+
+document.getElementById('btnSkipQuick').onclick = () => {
+  document.getElementById('quickModal').classList.remove('open');
+};
+
+document.getElementById('btnConfirmQuick').onclick = async () => {
+  const cutoff = parseInt(document.getElementById('quickAgeInput').value) || 0;
+  document.getElementById('quickModal').classList.remove('open');
+
+  const patch = {};
+  for (const item of SCALE_ITEMS) {
+    if (item.ageMonths <= cutoff) {
+      patch[item.id] = { status: 'pass', date: null };
+      childData.assessments[item.id] = { status: 'pass', date: null };
+    }
+  }
+
+  showSaveStatus('saving');
+  try {
+    await fetch(`/api/children/${childId}/assessments`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assessments: patch }),
+    });
+    showSaveStatus('saved');
+  } catch { showSaveStatus(''); }
+
+  // Re-render
+  renderSidebar();
+  renderMain();
+  updateProgress();
+};
+
+// ── Scroll Spy ──
+function setupScrollSpy() {
+  const main = document.getElementById('main');
+  main.addEventListener('scroll', () => {
+    const scrollTop = main.scrollTop;
+    let active = null;
+
+    for (const domain of DOMAINS) {
+      const groups = AGE_GROUPS.filter(g =>
+        SCALE_ITEMS.some(i => i.domain === domain.code && i.groupId === g.groupId)
+      );
+      for (const g of groups) {
+        const el = document.getElementById(`section-${domain.code}-${g.groupId}`);
+        if (el && el.offsetTop - 40 <= scrollTop) {
+          active = `${domain.code}-${g.groupId}`;
+        }
+      }
+    }
+
+    document.querySelectorAll('.sidebar-item').forEach(item => {
+      item.classList.remove('active');
+    });
+    if (active) {
+      const activeEl = document.getElementById(`nav-${active}`);
+      if (activeEl) {
+        activeEl.classList.add('active');
+        // Scroll sidebar to show active item
+        const sidebar = document.getElementById('sidebar');
+        const itemTop = activeEl.offsetTop;
+        const sidebarH = sidebar.clientHeight;
+        if (itemTop < sidebar.scrollTop || itemTop > sidebar.scrollTop + sidebarH - 40) {
+          sidebar.scrollTo({ top: itemTop - sidebarH / 2, behavior: 'smooth' });
+        }
+      }
+    }
+  });
+}
+
+init();
+</script>
+</body>
+</html>

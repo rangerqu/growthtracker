@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>评估报告 - 儿童发育行为评估量表</title>
+<script src="/js/scale-data.js"></script>
+<script src="/js/scoring.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --blue: #2563eb;
+    --blue-light: #eff6ff;
+    --green: #059669;
+    --green-bg: #d1fae5;
+    --red: #dc2626;
+    --red-bg: #fee2e2;
+    --orange: #d97706;
+    --orange-bg: #fef3c7;
+    --gray: #6b7280;
+    --gray-bg: #f3f4f6;
+    --gray-border: #e5e7eb;
+    --text: #111827;
+    --text-2: #374151;
+    --text-3: #6b7280;
+    --white: #ffffff;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  body {
+    font-family: -apple-system, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    background: #f8fafc;
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  /* ── Header ── */
+  .app-header {
+    background: var(--white);
+    border-bottom: 1px solid var(--gray-border);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .btn-back {
+    background: none; border: none;
+    color: var(--blue); font-size: 14px;
+    cursor: pointer; display: flex;
+    align-items: center; gap: 4px;
+    font-weight: 500; white-space: nowrap;
+  }
+  .app-header h1 { font-size: 16px; font-weight: 700; }
+
+  /* ── Container ── */
+  .container {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 20px 16px 60px;
+  }
+
+  /* ── Info Card ── */
+  .info-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--gray-border);
+    padding: 16px 18px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .info-avatar {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+  }
+  .avatar-male   { background: #dbeafe; }
+  .avatar-female { background: #fce7f3; }
+
+  .info-name {
+    font-size: 18px; font-weight: 700;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .gender-badge {
+    font-size: 12px; padding: 1px 8px;
+    border-radius: 99px; font-weight: 500;
+  }
+  .gender-male   { background: #dbeafe; color: #1d4ed8; }
+  .gender-female { background: #fce7f3; color: #be185d; }
+
+  .info-meta {
+    font-size: 13px; color: var(--text-3);
+    display: flex; flex-wrap: wrap; gap: 4px 14px;
+    margin-top: 4px;
+  }
+
+  /* ── Summary Card ── */
+  .summary-card {
+    background: var(--blue);
+    border-radius: var(--radius);
+    padding: 22px 20px;
+    margin-bottom: 14px;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .summary-dq { text-align: center; flex-shrink: 0; }
+  .dq-number {
+    font-size: 52px; font-weight: 800;
+    line-height: 1; letter-spacing: -2px;
+  }
+  .dq-label { font-size: 12px; opacity: 0.75; margin-top: 2px; letter-spacing: 0.5px; }
+
+  .summary-divider {
+    width: 1px; height: 70px;
+    background: rgba(255,255,255,0.25); flex-shrink: 0;
+  }
+
+  .summary-info { flex: 1; min-width: 0; }
+  .summary-level {
+    font-size: 22px; font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .summary-row {
+    font-size: 13px; opacity: 0.85;
+    display: flex; gap: 6px; align-items: center;
+    margin-bottom: 4px;
+  }
+  .summary-row .val { font-weight: 600; opacity: 1; }
+
+  /* ── Domain Table ── */
+  .section-title {
+    font-size: 13px; font-weight: 700;
+    color: var(--text-3); text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 10px;
+    padding-left: 2px;
+  }
+
+  .domain-table {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--gray-border);
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+
+  .domain-table-header {
+    display: grid;
+    grid-template-columns: 1fr 70px 70px 80px;
+    background: var(--gray-bg);
+    padding: 8px 16px;
+    font-size: 11px; font-weight: 700;
+    color: var(--text-3); text-transform: uppercase;
+    letter-spacing: 0.4px;
+    border-bottom: 1px solid var(--gray-border);
+  }
+
+  .domain-row {
+    display: grid;
+    grid-template-columns: 1fr 70px 70px 80px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--gray-border);
+    align-items: center;
+    transition: background 0.1s;
+  }
+  .domain-row:last-child { border-bottom: none; }
+  .domain-row:hover { background: #fafafa; }
+
+  .domain-name { font-size: 14px; font-weight: 600; color: var(--text); }
+  .domain-value {
+    font-size: 14px; font-weight: 600; color: var(--text-2);
+    text-align: center;
+  }
+  .domain-dq { text-align: center; }
+  .level-badge {
+    font-size: 11px; font-weight: 600;
+    padding: 3px 8px; border-radius: 99px;
+    white-space: nowrap;
+    display: inline-block;
+  }
+
+  /* ── Radar Chart ── */
+  .radar-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--gray-border);
+    padding: 20px;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+
+  .radar-wrap { display: inline-block; position: relative; }
+
+  svg.radar { overflow: visible; }
+
+  /* ── Legend ── */
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 8px 16px;
+    justify-content: center;
+    margin-top: 14px;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; color: var(--text-3);
+  }
+  .legend-dot {
+    width: 10px; height: 2px; border-radius: 1px;
+  }
+
+  /* ── Date ── */
+  .report-date {
+    text-align: center; font-size: 12px;
+    color: var(--text-3); margin-top: 8px;
+  }
+
+  /* ── Loading ── */
+  .loading { text-align: center; padding: 60px; color: var(--text-3); }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <button class="btn-back" id="btnBack">← 返回评估</button>
+  <h1>评估报告</h1>
+</header>
+
+<main class="container" id="container">
+  <div class="loading">计算中…</div>
+</main>
+
+<script>
+const childId = new URLSearchParams(location.search).get('id');
+
+document.getElementById('btnBack').onclick = () => {
+  location.href = childId ? `assessment.html?id=${childId}` : '/';
+};
+
+async function init() {
+  if (!childId) { location.href = '/'; return; }
+  const res = await fetch(`/api/children/${childId}`);
+  if (!res.ok) { location.href = '/'; return; }
+  const childData = await res.json();
+  const result = calcAssessmentResult(childData);
+  render(childData, result);
+}
+
+function render(childData, result) {
+  const container = document.getElementById('container');
+  const isNull = result.totalDQ === null;
+  const dqDisplay = isNull ? '—' : result.totalDQ.toFixed(1);
+  const levelInfo = result.totalLevel;
+  const genderClass = childData.gender === 'male' ? 'gender-male' : 'gender-female';
+  const genderLabel = childData.gender === 'male' ? '♂ 男' : '♀ 女';
+  const avatarClass = childData.gender === 'male' ? 'avatar-male' : 'avatar-female';
+  const avatarEmoji = childData.gender === 'male' ? '👦' : '👧';
+
+  // Domain rows
+  const domainRows = DOMAINS.map(d => {
+    const dr = result.domains[d.code];
+    const lvl = dr.level;
+    const dqStr = dr.dq !== null ? dr.dq.toFixed(1) : '—';
+    return `<div class="domain-row">
+      <div class="domain-name">${d.name}</div>
+      <div class="domain-value">${dr.domainAge} 月</div>
+      <div class="domain-value domain-dq">${dqStr}</div>
+      <div style="text-align:center">
+        <span class="level-badge" style="background:${lvl.bg};color:${lvl.color}">${lvl.level}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  container.innerHTML = `
+    <!-- Info Card -->
+    <div class="info-card">
+      <div class="info-avatar ${avatarClass}">${avatarEmoji}</div>
+      <div>
+        <div class="info-name">
+          ${childData.name}
+          <span class="gender-badge ${genderClass}">${genderLabel}</span>
+        </div>
+        <div class="info-meta">
+          <span>📅 ${childData.birthDate.replace(/-/g, '/')}</span>
+          <span>🎂 ${formatAge(result.actualAgeMonths)}（${result.actualAgeMonths} 月）</span>
+          <span>✅ ${result.passCount}/${result.totalItems} 项已通过</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary-card">
+      <div class="summary-dq">
+        <div class="dq-number">${dqDisplay}</div>
+        <div class="dq-label">总发育商 DQ</div>
+      </div>
+      <div class="summary-divider"></div>
+      <div class="summary-info">
+        <div class="summary-level">${levelInfo.level}</div>
+        <div class="summary-row">
+          <span>总智龄</span>
+          <span class="val">${result.totalDevelopmentalAge} 月</span>
+        </div>
+        <div class="summary-row">
+          <span>实际月龄</span>
+          <span class="val">${result.actualAgeMonths} 月</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Domain Table -->
+    <div class="section-title">各能区详情</div>
+    <div class="domain-table">
+      <div class="domain-table-header">
+        <div>能区</div>
+        <div style="text-align:center">智龄</div>
+        <div style="text-align:center">DQ</div>
+        <div style="text-align:center">等级</div>
+      </div>
+      ${domainRows}
+    </div>
+
+    <!-- Radar -->
+    <div class="section-title">能区雷达图</div>
+    <div class="radar-card">
+      <div class="radar-wrap">
+        ${buildRadar(result)}
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#2563eb;height:8px;width:8px;border-radius:50%"></div>各能区 DQ</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#9ca3af"></div>参考线 (80 / 100 / 130)</div>
+      </div>
+    </div>
+
+    <div class="report-date">报告生成时间：${new Date().toLocaleString('zh-CN')}</div>
+  `;
+}
+
+// ── Radar Chart (SVG) ──
+function buildRadar(result) {
+  const W = 400, H = 400;
+  const cx = 200, cy = 200, R = 140;
+  const MAX_DQ = 150;
+
+  // 5 axes: GM(-90°), FM(-18°), AD(54°), LA(126°), SB(198°)
+  const angles = [-90, -18, 54, 126, 198].map(d => d * Math.PI / 180);
+  const domainCodes = ['GM', 'FM', 'AD', 'LA', 'SB'];
+  const domainNames = ['大运动', '精细动作', '适应能力', '语言', '社会行为'];
+
+  function pt(r, angle) {
+    return [cx + r * Math.cos(angle), cy + r * Math.sin(angle)];
+  }
+
+  // Reference rings
+  const refs = [70, 80, 100, 110, 130];
+  let gridLines = '';
+  for (const ref of refs) {
+    const r = (ref / MAX_DQ) * R;
+    const pts = angles.map(a => pt(r, a));
+    const d = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ') + ' Z';
+    const isMain = ref === 100;
+    gridLines += `<path d="${d}" fill="none" stroke="${isMain ? '#94a3b8' : '#e2e8f0'}"
+      stroke-width="${isMain ? 1.5 : 1}" stroke-dasharray="${isMain ? '' : '4,3'}"/>`;
+    // Label on right axis (FM direction)
+    const lp = pt(r, angles[1]);
+    gridLines += `<text x="${(lp[0]+4).toFixed(1)}" y="${(lp[1]+4).toFixed(1)}"
+      font-size="9" fill="#94a3b8" font-family="-apple-system,sans-serif">${ref}</text>`;
+  }
+
+  // Axis lines
+  let axisLines = '';
+  for (let i = 0; i < 5; i++) {
+    const [x, y] = pt(R, angles[i]);
+    axisLines += `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}"
+      stroke="#e2e8f0" stroke-width="1"/>`;
+  }
+
+  // Data polygon
+  const dqs = domainCodes.map(code => {
+    const d = result.domains[code];
+    return d && d.dq !== null ? Math.min(d.dq, MAX_DQ) : 0;
+  });
+  const dataPts = dqs.map((dq, i) => pt((dq / MAX_DQ) * R, angles[i]));
+  const dataPath = dataPts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ') + ' Z';
+
+  // Data dots
+  const dots = dataPts.map(([x, y]) =>
+    `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5"
+      fill="#2563eb" stroke="white" stroke-width="2"/>`
+  ).join('');
+
+  // Labels
+  const labelOffset = 22;
+  const labels = domainNames.map((name, i) => {
+    const [x, y] = pt(R + labelOffset, angles[i]);
+    const anchor = x < cx - 5 ? 'end' : x > cx + 5 ? 'start' : 'middle';
+    const dqVal = dqs[i] > 0 ? dqs[i].toFixed(1) : '—';
+    return `<text x="${x.toFixed(1)}" y="${(y - 6).toFixed(1)}"
+      text-anchor="${anchor}" font-size="12" font-weight="600"
+      fill="#374151" font-family="-apple-system,'PingFang SC',sans-serif">${name}</text>
+    <text x="${x.toFixed(1)}" y="${(y + 8).toFixed(1)}"
+      text-anchor="${anchor}" font-size="11" fill="#2563eb"
+      font-family="-apple-system,sans-serif" font-weight="700">${dqVal}</text>`;
+  }).join('');
+
+  return `<svg class="radar" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+    ${gridLines}
+    ${axisLines}
+    <path d="${dataPath}" fill="rgba(37,99,235,0.15)" stroke="#2563eb" stroke-width="2" stroke-linejoin="round"/>
+    ${dots}
+    ${labels}
+  </svg>`;
+}
+
+init();
+</script>
+</body>
+</html>
