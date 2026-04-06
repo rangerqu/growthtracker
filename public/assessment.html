@@ -4,31 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>评估 - 儿童发育行为评估量表</title>
+<link rel="stylesheet" href="/css/base.css">
 <script src="/js/scale-data.js"></script>
 <script src="/js/scoring.js"></script>
 <script src="/js/item-details.js"></script>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
   :root {
-    --blue: #2563eb;
-    --blue-light: #eff6ff;
-    --blue-mid: #bfdbfe;
-    --green: #059669;
-    --green-bg: #d1fae5;
-    --red: #dc2626;
-    --red-bg: #fee2e2;
-    --orange: #d97706;
-    --orange-bg: #fef3c7;
-    --gray: #6b7280;
-    --gray-bg: #f3f4f6;
-    --gray-border: #e5e7eb;
-    --text: #111827;
-    --text-2: #374151;
-    --text-3: #6b7280;
-    --white: #ffffff;
-    --shadow: 0 1px 3px rgba(0,0,0,0.08);
-    --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
     --radius: 10px;
     --radius-sm: 7px;
     --header-h: 110px;
@@ -36,13 +17,7 @@
   }
 
   html, body { height: 100%; }
-
-  body {
-    font-family: -apple-system, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
-    background: #f8fafc;
-    color: var(--text);
-    overflow: hidden;
-  }
+  body { overflow: hidden; }
 
   /* ── Fixed Header ── */
   .app-header {
@@ -420,7 +395,7 @@
   <div class="progress-wrap">
     <div class="progress-label">
       <span>评估进度</span>
-      <span class="count"><span id="passCountLabel">0</span> / 261</span>
+      <span class="count"><span id="passCountLabel">0</span> / <span id="totalItemsLabel">261</span></span>
     </div>
     <div class="progress-bar">
       <div class="progress-fill" id="progressFill" style="width:0%"></div>
@@ -493,14 +468,16 @@ async function init() {
 
 // ── Progress ──
 function updateProgress() {
+  const total = SCALE_ITEMS.length;
   const pass = Object.values(childData.assessments).filter(a => a.status === 'pass').length;
   document.getElementById('passCountLabel').textContent = pass;
-  document.getElementById('progressFill').style.width = (pass / 261 * 100) + '%';
+  document.getElementById('totalItemsLabel').textContent = total;
+  document.getElementById('progressFill').style.width = (pass / total * 100) + '%';
 }
 
 // ── Sidebar ──
 function getSidebarDotClass(domainCode, groupId) {
-  const items = SCALE_ITEMS.filter(i => i.domain === domainCode && i.groupId === groupId);
+  const items = SCALE_INDEX[`${domainCode}:${groupId}`] || [];
   const passCount = items.filter(i => (childData.assessments[i.id] || {}).status === 'pass').length;
   if (passCount === items.length) return 'dot-green';
   if (passCount > 0) return 'dot-orange';
@@ -513,9 +490,7 @@ function renderSidebar() {
   for (const domain of DOMAINS) {
     html += `<div class="sidebar-domain">
       <div class="sidebar-domain-title">${domain.name}</div>`;
-    const groups = AGE_GROUPS.filter(g =>
-      SCALE_ITEMS.some(i => i.domain === domain.code && i.groupId === g.groupId)
-    );
+    const groups = GROUPS_BY_DOMAIN[domain.code] || [];
     for (const g of groups) {
       const dotClass = getSidebarDotClass(domain.code, g.groupId);
       html += `<div class="sidebar-item" id="nav-${domain.code}-${g.groupId}"
@@ -550,10 +525,8 @@ function renderMain() {
   let html = '';
 
   for (const domain of DOMAINS) {
-    const groups = AGE_GROUPS.filter(g =>
-      SCALE_ITEMS.some(i => i.domain === domain.code && i.groupId === g.groupId)
-    );
-    const domainItems = SCALE_ITEMS.filter(i => i.domain === domain.code);
+    const groups = GROUPS_BY_DOMAIN[domain.code] || [];
+    const domainItems = ITEMS_BY_DOMAIN[domain.code] || [];
     const domainPass = domainItems.filter(i => (childData.assessments[i.id] || {}).status === 'pass').length;
 
     html += `<div class="domain-section" id="domain-${domain.code}">
@@ -563,7 +536,7 @@ function renderMain() {
       </div>`;
 
     for (const g of groups) {
-      const items = SCALE_ITEMS.filter(i => i.domain === domain.code && i.groupId === g.groupId);
+      const items = SCALE_INDEX[`${domain.code}:${g.groupId}`] || [];
       html += `<div class="age-group" id="section-${domain.code}-${g.groupId}">
         <div class="age-group-header">
           <div class="age-group-line"></div>
@@ -710,7 +683,7 @@ function toggleUnknown(itemId, domain, groupId, checked) {
 
 // ── Bulk Status ──
 async function bulkStatus(domainCode, groupId, status) {
-  const items = SCALE_ITEMS.filter(i => i.domain === domainCode && i.groupId === groupId);
+  const items = SCALE_INDEX[`${domainCode}:${groupId}`] || [];
   const patch = {};
   for (const item of items) {
     patch[item.id] = { status, date: null };
@@ -743,19 +716,24 @@ async function bulkStatus(domainCode, groupId, status) {
   }
 }
 
-// ── Auto Save ──
+// ── Auto Save (batched to avoid losing rapid edits) ──
+let pendingSaves = {};
+
 function scheduleSave(itemId, status, date) {
+  pendingSaves[itemId] = { status, date };
   showSaveStatus('saving');
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => saveItem(itemId, status, date), 600);
+  saveTimer = setTimeout(flushSaves, 600);
 }
 
-async function saveItem(itemId, status, date) {
+async function flushSaves() {
+  const batch = pendingSaves;
+  pendingSaves = {};
   try {
-    await fetch(`/api/children/${childId}/assessments/${itemId}`, {
-      method: 'PATCH',
+    await fetch(`/api/children/${childId}/assessments`, {
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, date }),
+      body: JSON.stringify({ assessments: batch }),
     });
     showSaveStatus('saved');
   } catch {
@@ -820,14 +798,22 @@ document.getElementById('btnConfirmQuick').onclick = async () => {
 // ── Scroll Spy ──
 function setupScrollSpy() {
   const main = document.getElementById('main');
+  const sidebar = document.getElementById('sidebar');
+  const sidebarItems = sidebar.querySelectorAll('.sidebar-item');
+
+  let lastSpyTime = 0;
+  let lastActive = null;
+
   main.addEventListener('scroll', () => {
+    const now = Date.now();
+    if (now - lastSpyTime < 80) return;
+    lastSpyTime = now;
+
     const scrollTop = main.scrollTop;
     let active = null;
 
     for (const domain of DOMAINS) {
-      const groups = AGE_GROUPS.filter(g =>
-        SCALE_ITEMS.some(i => i.domain === domain.code && i.groupId === g.groupId)
-      );
+      const groups = GROUPS_BY_DOMAIN[domain.code] || [];
       for (const g of groups) {
         const el = document.getElementById(`section-${domain.code}-${g.groupId}`);
         if (el && el.offsetTop - 40 <= scrollTop) {
@@ -836,15 +822,14 @@ function setupScrollSpy() {
       }
     }
 
-    document.querySelectorAll('.sidebar-item').forEach(item => {
-      item.classList.remove('active');
-    });
+    if (active === lastActive) return;
+    lastActive = active;
+
+    sidebarItems.forEach(item => item.classList.remove('active'));
     if (active) {
       const activeEl = document.getElementById(`nav-${active}`);
       if (activeEl) {
         activeEl.classList.add('active');
-        // Scroll sidebar to show active item
-        const sidebar = document.getElementById('sidebar');
         const itemTop = activeEl.offsetTop;
         const sidebarH = sidebar.clientHeight;
         if (itemTop < sidebar.scrollTop || itemTop > sidebar.scrollTop + sidebarH - 40) {

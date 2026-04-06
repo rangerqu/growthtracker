@@ -424,5 +424,22 @@ const SCALE_ITEMS = [
   { id: 'SB_28_2', domain: 'SB', groupId: '28', ageMonths: 84, score: 3.0, description: '猫头鹰抓老鼠', note: '' },
 ];
 
-// 总项目数验证：261项
-// console.assert(SCALE_ITEMS.length === 261, `期望261项，实际${SCALE_ITEMS.length}项`);
+// Pre-built indexes for fast lookup (avoids repeated .filter() on 261 items)
+const SCALE_INDEX = {};       // 'GM:01' -> [item, item, ...]
+const ITEMS_BY_DOMAIN = {};   // 'GM' -> [item, item, ...]
+const GROUPS_BY_DOMAIN = {};  // 'GM' -> [group, group, ...]
+
+for (const item of SCALE_ITEMS) {
+  const key = `${item.domain}:${item.groupId}`;
+  if (!SCALE_INDEX[key]) SCALE_INDEX[key] = [];
+  SCALE_INDEX[key].push(item);
+  if (!ITEMS_BY_DOMAIN[item.domain]) ITEMS_BY_DOMAIN[item.domain] = [];
+  ITEMS_BY_DOMAIN[item.domain].push(item);
+}
+for (const domain of DOMAINS) {
+  const groupSet = new Set();
+  for (const item of (ITEMS_BY_DOMAIN[domain.code] || [])) {
+    groupSet.add(item.groupId);
+  }
+  GROUPS_BY_DOMAIN[domain.code] = AGE_GROUPS.filter(g => groupSet.has(g.groupId));
+}

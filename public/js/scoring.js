@@ -19,9 +19,7 @@ function getAgeMonths(birthDate, refDate) {
  * 判断某能区某月龄组的所有项目是否全部通过
  */
 function isGroupAllPass(domainCode, groupId, assessments) {
-  const items = SCALE_ITEMS.filter(
-    item => item.domain === domainCode && item.groupId === groupId
-  );
+  const items = SCALE_INDEX[`${domainCode}:${groupId}`] || [];
   return items.length > 0 && items.every(
     item => assessments[item.id] && assessments[item.id].status === 'pass'
   );
@@ -38,10 +36,7 @@ function isGroupAllPass(domainCode, groupId, assessments) {
  * @returns {number} 智龄分（等同月龄数）
  */
 function calcDomainAge(domainCode, assessments) {
-  // 该能区有项目的月龄组，按月龄升序
-  const groups = AGE_GROUPS.filter(g =>
-    SCALE_ITEMS.some(item => item.domain === domainCode && item.groupId === g.groupId)
-  );
+  const groups = GROUPS_BY_DOMAIN[domainCode] || [];
 
   // 找基线：最后一个"连续两组均全通过"的位置
   let baselineIndex = -1;
@@ -57,15 +52,11 @@ function calcDomainAge(domainCode, assessments) {
   let totalScore = 0;
 
   if (baselineIndex >= 0) {
-    // 基线及之前：全部满分
     for (let i = 0; i <= baselineIndex; i++) {
       totalScore += groups[i].scorePerGroup;
     }
-    // 基线之后：逐项计分
     for (let i = baselineIndex + 1; i < groups.length; i++) {
-      const items = SCALE_ITEMS.filter(
-        item => item.domain === domainCode && item.groupId === groups[i].groupId
-      );
+      const items = SCALE_INDEX[`${domainCode}:${groups[i].groupId}`] || [];
       for (const item of items) {
         if (assessments[item.id] && assessments[item.id].status === 'pass') {
           totalScore += item.score;
@@ -73,11 +64,8 @@ function calcDomainAge(domainCode, assessments) {
       }
     }
   } else {
-    // 无基线：全部逐项计分
     for (const g of groups) {
-      const items = SCALE_ITEMS.filter(
-        item => item.domain === domainCode && item.groupId === g.groupId
-      );
+      const items = SCALE_INDEX[`${domainCode}:${g.groupId}`] || [];
       for (const item of items) {
         if (assessments[item.id] && assessments[item.id].status === 'pass') {
           totalScore += item.score;

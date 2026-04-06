@@ -4,26 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>生长曲线 - 儿童成长跟踪</title>
+<link rel="stylesheet" href="/css/base.css">
 <script src="/js/growth-standards.js"></script>
 <script src="/js/scoring.js"></script>
 <style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-:root {
-  --blue: #2563eb; --blue-light: #eff6ff; --blue-mid: #bfdbfe;
-  --green: #059669; --green-bg: #d1fae5;
-  --red: #dc2626; --red-bg: #fee2e2;
-  --orange: #ea580c;
-  --gray: #6b7280; --gray-bg: #f3f4f6; --gray-border: #e5e7eb;
-  --text: #111827; --text-2: #374151; --text-3: #6b7280;
-  --white: #ffffff;
-  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
-  --radius: 12px; --radius-sm: 8px;
-}
-body {
-  font-family: -apple-system, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
-  background: #f8fafc; color: var(--text); min-height: 100vh; line-height: 1.6;
-}
+:root { --orange: #ea580c; }
 .app-header {
   background: var(--white); border-bottom: 1px solid var(--gray-border);
   padding: 16px 20px; position: sticky; top: 0; z-index: 10;
@@ -178,6 +163,10 @@ let childData = null;
 let currentTab = 'records';
 const childId = new URLSearchParams(location.search).get('id');
 
+function calcBMI(weightKg, heightCm) {
+  return +(weightKg / Math.pow(heightCm / 100, 2)).toFixed(1);
+}
+
 async function init() {
   if (!childId) { alert('缺少参数'); return; }
   const res = await fetch('/api/children/' + childId);
@@ -221,8 +210,7 @@ function renderRecords(container) {
     if (r.weight != null) vals.push('<span class="record-val">体重 <span>' + r.weight + '</span> kg</span>');
     if (r.headCirc != null) vals.push('<span class="record-val">头围 <span>' + r.headCirc + '</span> cm</span>');
     if (r.weight != null && r.height != null) {
-      var bmi = (r.weight / Math.pow(r.height / 100, 2)).toFixed(1);
-      vals.push('<span class="record-val">BMI <span>' + bmi + '</span></span>');
+      vals.push('<span class="record-val">BMI <span>' + calcBMI(r.weight, r.height) + '</span></span>');
     }
     html += '<div class="record-card">' +
       '<div class="record-info">' +
@@ -248,7 +236,6 @@ function renderChart(container, type) {
     return;
   }
 
-  // Get data points for this metric
   var dataPoints = [];
   childData.measurements.forEach(function(m) {
     var val = null;
@@ -256,7 +243,7 @@ function renderChart(container, type) {
     else if (type === 'weight') val = m.weight;
     else if (type === 'headCirc') val = m.headCirc;
     else if (type === 'bmi' && m.weight != null && m.height != null)
-      val = +(m.weight / Math.pow(m.height / 100, 2)).toFixed(1);
+      val = calcBMI(m.weight, m.height);
     if (val != null) dataPoints.push({ age: m.ageMonths, val: val });
   });
 
@@ -310,31 +297,27 @@ function renderChart(container, type) {
   function xc(age) { return mL + (age - rangeMin) * pxPerMonth; }
   function yc(val) { return mT + chartH - (val - yMin) / (yMax - yMin) * chartH; }
 
-  var s = '<svg width="' + svgW + '" height="' + svgH + '" xmlns="http://www.w3.org/2000/svg">';
+  var svg = ['<svg width="' + svgW + '" height="' + svgH + '" xmlns="http://www.w3.org/2000/svg">'];
 
-  // Y grid
   var yStep = niceStep(yMin, yMax, 8);
   for (var v = Math.ceil(yMin / yStep) * yStep; v <= yMax; v += yStep) {
     var yy = yc(v);
-    s += '<line x1="' + mL + '" y1="' + yy + '" x2="' + (svgW - mR) + '" y2="' + yy + '" stroke="#e5e7eb" stroke-width="0.5"/>';
-    s += '<text x="' + (mL - 8) + '" y="' + (yy + 4) + '" text-anchor="end" fill="#9ca3af" font-size="11">' + v + '</text>';
+    svg.push('<line x1="' + mL + '" y1="' + yy + '" x2="' + (svgW - mR) + '" y2="' + yy + '" stroke="#e5e7eb" stroke-width="0.5"/>');
+    svg.push('<text x="' + (mL - 8) + '" y="' + (yy + 4) + '" text-anchor="end" fill="#9ca3af" font-size="11">' + v + '</text>');
   }
 
-  // X labels
   var labelInterval = (rangeMax - rangeMin > 24) ? 3 : (rangeMax - rangeMin > 12) ? 2 : 1;
   for (var m = rangeMin; m <= rangeMax; m++) {
     var xx = xc(m);
     if (m % labelInterval === 0) {
-      s += '<text x="' + xx + '" y="' + (svgH - 8) + '" text-anchor="middle" fill="#9ca3af" font-size="10">' + fmtMonthLabel(m) + '</text>';
+      svg.push('<text x="' + xx + '" y="' + (svgH - 8) + '" text-anchor="middle" fill="#9ca3af" font-size="10">' + formatAge(m) + '</text>');
     }
-    s += '<line x1="' + xx + '" y1="' + (mT + chartH) + '" x2="' + xx + '" y2="' + (mT + chartH + 3) + '" stroke="#d1d5db" stroke-width="0.5"/>';
+    svg.push('<line x1="' + xx + '" y1="' + (mT + chartH) + '" x2="' + xx + '" y2="' + (mT + chartH + 3) + '" stroke="#d1d5db" stroke-width="0.5"/>');
   }
 
-  // Percentile fill & lines
   var pIdx = [0, 2, 3, 4, 6]; // P3, P25, P50, P75, P97
   var pLbl = ['3%', '25%', '50%', '75%', '97%'];
   if (stdInRange.length >= 2) {
-    // P3-P97 fill
     var pathUp = '', pathDown = '';
     for (var i = 0; i < stdInRange.length; i++) {
       var a = stdInRange[i];
@@ -347,9 +330,8 @@ function renderChart(container, type) {
       var d = GROWTH_STANDARDS[type][gender][a];
       pathDown += 'L' + xc(a) + ',' + yc(d[0]) + ' ';
     }
-    s += '<path d="' + pathUp + pathDown + 'Z" fill="rgba(186,230,253,0.4)" stroke="none"/>';
+    svg.push('<path d="' + pathUp + pathDown + 'Z" fill="rgba(186,230,253,0.4)" stroke="none"/>');
 
-    // Lines
     var lColors = ['#93c5fd', '#93c5fd', '#60a5fa', '#93c5fd', '#93c5fd'];
     var lWidths = [0.8, 0.8, 1.2, 0.8, 0.8];
     for (var li = 0; li < pIdx.length; li++) {
@@ -360,60 +342,46 @@ function renderChart(container, type) {
         var d = GROWTH_STANDARDS[type][gender][a];
         lp += (i === 0 ? 'M' : 'L') + xc(a) + ',' + yc(d[pi]) + ' ';
       }
-      s += '<path d="' + lp + '" fill="none" stroke="' + lColors[li] + '" stroke-width="' + lWidths[li] + '"/>';
-      // End label
+      svg.push('<path d="' + lp + '" fill="none" stroke="' + lColors[li] + '" stroke-width="' + lWidths[li] + '"/>');
       var lastA = stdInRange[stdInRange.length - 1];
       var lastD = GROWTH_STANDARDS[type][gender][lastA];
-      s += '<text x="' + (xc(lastA) + 6) + '" y="' + (yc(lastD[pi]) + 3) + '" fill="#60a5fa" font-size="10" font-weight="500">' + pLbl[li] + '</text>';
+      svg.push('<text x="' + (xc(lastA) + 6) + '" y="' + (yc(lastD[pi]) + 3) + '" fill="#60a5fa" font-size="10" font-weight="500">' + pLbl[li] + '</text>');
     }
   }
 
-  // Today line
   if (currentAge >= rangeMin && currentAge <= rangeMax) {
     var tx = xc(currentAge);
-    s += '<line x1="' + tx + '" y1="' + mT + '" x2="' + tx + '" y2="' + (mT + chartH) + '" stroke="#ea580c" stroke-width="1.5" stroke-dasharray="6,4"/>';
-    s += '<rect x="' + (tx - 16) + '" y="' + (mT + chartH - 28) + '" width="32" height="18" rx="9" fill="#ea580c"/>';
-    s += '<text x="' + tx + '" y="' + (mT + chartH - 16) + '" text-anchor="middle" fill="white" font-size="10" font-weight="600">今天</text>';
+    svg.push('<line x1="' + tx + '" y1="' + mT + '" x2="' + tx + '" y2="' + (mT + chartH) + '" stroke="#ea580c" stroke-width="1.5" stroke-dasharray="6,4"/>');
+    svg.push('<rect x="' + (tx - 16) + '" y="' + (mT + chartH - 28) + '" width="32" height="18" rx="9" fill="#ea580c"/>');
+    svg.push('<text x="' + tx + '" y="' + (mT + chartH - 16) + '" text-anchor="middle" fill="white" font-size="10" font-weight="600">今天</text>');
   }
 
-  // Data line & points
-  var vp = dataPoints.filter(function(p) { return p.age >= rangeMin - 1 && p.age <= rangeMax + 1; });
+  var vp = dataPoints.filter(function(pt) { return pt.age >= rangeMin - 1 && pt.age <= rangeMax + 1; });
   if (vp.length >= 2) {
     var dp = '';
     for (var i = 0; i < vp.length; i++) {
       dp += (i === 0 ? 'M' : 'L') + xc(vp[i].age) + ',' + yc(vp[i].val) + ' ';
     }
-    s += '<path d="' + dp + '" fill="none" stroke="#22c55e" stroke-width="2"/>';
+    svg.push('<path d="' + dp + '" fill="none" stroke="#22c55e" stroke-width="2"/>');
   }
-  if (vp.length > 0) {
-    for (var i = 0; i < vp.length; i++) {
-      s += '<circle cx="' + xc(vp[i].age) + '" cy="' + yc(vp[i].val) + '" r="4" fill="#22c55e" stroke="white" stroke-width="1.5"/>';
-    }
+  for (var i = 0; i < vp.length; i++) {
+    svg.push('<circle cx="' + xc(vp[i].age) + '" cy="' + yc(vp[i].val) + '" r="4" fill="#22c55e" stroke="white" stroke-width="1.5"/>');
   }
 
-  // Axes
-  s += '<line x1="' + mL + '" y1="' + mT + '" x2="' + mL + '" y2="' + (mT + chartH) + '" stroke="#d1d5db" stroke-width="1"/>';
-  s += '<line x1="' + mL + '" y1="' + (mT + chartH) + '" x2="' + (svgW - mR) + '" y2="' + (mT + chartH) + '" stroke="#d1d5db" stroke-width="1"/>';
-  s += '</svg>';
+  svg.push('<line x1="' + mL + '" y1="' + mT + '" x2="' + mL + '" y2="' + (mT + chartH) + '" stroke="#d1d5db" stroke-width="1"/>');
+  svg.push('<line x1="' + mL + '" y1="' + (mT + chartH) + '" x2="' + (svgW - mR) + '" y2="' + (mT + chartH) + '" stroke="#d1d5db" stroke-width="1"/>');
+  svg.push('</svg>');
 
   var unitMap = { height: '身高 (cm)', weight: '体重 (kg)', headCirc: '头围 (cm)', bmi: 'BMI (kg/m²)' };
   container.innerHTML =
     '<div class="chart-y-label">' + unitMap[type] + '</div>' +
-    '<div class="chart-wrap">' + s + '</div>';
+    '<div class="chart-wrap">' + svg.join('') + '</div>';
 
   // Scroll to show current age in center
   var wrap = container.querySelector('.chart-wrap');
   if (wrap && wrap.scrollWidth > wrap.clientWidth) {
     wrap.scrollLeft = Math.max(0, xc(currentAge) - wrap.clientWidth / 2);
   }
-}
-
-function fmtMonthLabel(months) {
-  if (months < 12) return months + '个月';
-  var y = Math.floor(months / 12);
-  var m = months % 12;
-  if (m === 0) return y + '岁';
-  return y + '岁' + m + '月';
 }
 
 function niceStep(min, max, ticks) {
@@ -483,10 +451,15 @@ async function saveMeasurement() {
     });
   }
   if (!res.ok) { alert('保存失败'); return; }
+  var saved = await res.json();
+  if (editId) {
+    var idx = childData.measurements.findIndex(function(m) { return m.id === editId; });
+    if (idx !== -1) childData.measurements[idx] = saved;
+  } else {
+    childData.measurements.push(saved);
+  }
+  childData.measurements.sort(function(a, b) { return a.date.localeCompare(b.date); });
   closeModal();
-  var r = await fetch('/api/children/' + childId);
-  childData = await r.json();
-  if (!childData.measurements) childData.measurements = [];
   renderContent();
 }
 

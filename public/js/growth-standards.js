@@ -359,6 +359,15 @@ const GROWTH_STANDARDS = {
   }
 };
 
+// Pre-compute sorted age arrays (avoids repeated Object.keys + sort on every render)
+const _STANDARD_AGES = {};
+for (const type of Object.keys(GROWTH_STANDARDS)) {
+  _STANDARD_AGES[type] = {};
+  for (const gender of Object.keys(GROWTH_STANDARDS[type])) {
+    _STANDARD_AGES[type][gender] = Object.keys(GROWTH_STANDARDS[type][gender]).map(Number).sort((a, b) => a - b);
+  }
+}
+
 /**
  * 获取指定月龄的插值百分位数据
  * 标准表只有离散月龄点，需要线性插值获取中间值
@@ -367,14 +376,12 @@ function getStandardAtAge(type, gender, ageMonths) {
   const data = GROWTH_STANDARDS[type]?.[gender];
   if (!data) return null;
 
-  const ages = Object.keys(data).map(Number).sort((a, b) => a - b);
-  if (ages.length === 0) return null;
+  const ages = _STANDARD_AGES[type]?.[gender];
+  if (!ages || ages.length === 0) return null;
 
-  // 超出范围
   if (ageMonths <= ages[0]) return data[ages[0]];
   if (ageMonths >= ages[ages.length - 1]) return data[ages[ages.length - 1]];
 
-  // 找到前后两个点进行线性插值
   let lo = ages[0], hi = ages[ages.length - 1];
   for (let i = 0; i < ages.length - 1; i++) {
     if (ageMonths >= ages[i] && ageMonths <= ages[i + 1]) {
@@ -392,11 +399,6 @@ function getStandardAtAge(type, gender, ageMonths) {
   return loData.map((v, i) => +(v + t * (hiData[i] - v)).toFixed(1));
 }
 
-/**
- * 获取某类型指标的所有标准月龄列表
- */
 function getStandardAges(type, gender) {
-  const data = GROWTH_STANDARDS[type]?.[gender];
-  if (!data) return [];
-  return Object.keys(data).map(Number).sort((a, b) => a - b);
+  return _STANDARD_AGES[type]?.[gender] || [];
 }

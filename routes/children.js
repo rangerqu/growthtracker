@@ -5,6 +5,11 @@ const { v4: uuidv4 } = require('uuid');
 
 const router = express.Router();
 const DATA_DIR = path.join(__dirname, '..', 'data', 'children');
+const MS_PER_MONTH = 1000 * 60 * 60 * 24 * 30.4375;
+
+function calcAgeMonths(birthDate, refDate) {
+  return +((new Date(refDate) - new Date(birthDate)) / MS_PER_MONTH).toFixed(1);
+}
 
 function readChild(id) {
   const file = path.join(DATA_DIR, `${id}.json`);
@@ -29,7 +34,6 @@ router.get('/', (req, res) => {
       const d = JSON.parse(fs.readFileSync(path.join(DATA_DIR, f), 'utf-8'));
       const passCount = Object.values(d.assessments || {})
         .filter(a => a.status === 'pass').length;
-      // 摘要：每个指标取最近一次有值的记录
       const measurements = d.measurements || [];
       let lastMeasurement = null;
       if (measurements.length > 0) {
@@ -44,7 +48,7 @@ router.get('/', (req, res) => {
           if (height != null && weight != null && headCirc != null) break;
         }
         // 3岁（36月龄）以上不显示头围
-        const ageMonths = (Date.now() - new Date(d.birthDate).getTime()) / (1000 * 60 * 60 * 24 * 30.4375);
+        const ageMonths = calcAgeMonths(d.birthDate, new Date());
         if (ageMonths >= 36) { headCirc = null; headCircDate = null; }
         const dates = [heightDate, weightDate, headCircDate].filter(Boolean);
         const latestDate = dates.length > 0 ? dates.sort().pop() : null;
@@ -135,10 +139,7 @@ router.post('/:id/measurements', (req, res) => {
 
   if (!data.measurements) data.measurements = [];
 
-  // 计算月龄
-  const birth = new Date(data.birthDate);
-  const mDate = new Date(date);
-  const ageMonths = +((mDate - birth) / (1000 * 60 * 60 * 24 * 30.4375)).toFixed(1);
+  const ageMonths = calcAgeMonths(data.birthDate, date);
 
   const record = {
     id: uuidv4(),
@@ -168,9 +169,7 @@ router.put('/:id/measurements/:mid', (req, res) => {
   const rec = data.measurements[idx];
   if (date) {
     rec.date = date;
-    const birth = new Date(data.birthDate);
-    const mDate = new Date(date);
-    rec.ageMonths = +((mDate - birth) / (1000 * 60 * 60 * 24 * 30.4375)).toFixed(1);
+    rec.ageMonths = calcAgeMonths(data.birthDate, date);
   }
   if (weight !== undefined) rec.weight = weight != null ? +weight : null;
   if (height !== undefined) rec.height = height != null ? +height : null;
